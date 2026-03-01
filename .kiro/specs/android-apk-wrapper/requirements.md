@@ -90,7 +90,7 @@ This document specifies requirements for the Android APK Wrapper that hosts the 
 #### Acceptance Criteria
 
 1. THE Android_Wrapper SHALL serve the web application content to the WebView
-2. THE Android_Wrapper v1 SHALL use bundled static assets served from Android app storage
+2. THE Android_Wrapper v1 SHALL use an embedded HTTP server (NanoHTTPD) to serve bundled static assets from Android app storage to WebView via http://localhost:<port>/ (canonical URL uses hostname 'localhost', not IP literal)
 3. THE Android_Wrapper SHALL load the web application within a WebView component
 4. THE Android_Wrapper SHALL serve all core web app assets from internal app storage; external network requests MAY be used for online-dependent plugin/provider operations
 
@@ -153,9 +153,11 @@ This document specifies requirements for the Android APK Wrapper that hosts the 
 
 1. WebView JavaScript interface exposure SHALL be minimal and documented
 2. Remote WebView debugging SHALL be disabled in production builds
-3. THE Android_Wrapper SHALL NOT expose any externally reachable local runtime endpoint in v1 static-assets mode
-4. IF a local runtime endpoint is introduced in a future version, THEN it SHALL bind to localhost only and prevent external network access
+3. THE Android_Wrapper SHALL expose a localhost-only HTTP endpoint in v1 for serving web app content, binding to 127.0.0.1 and serving via canonical URL http://localhost:<port>/ to ensure cleartext compatibility across Android API levels
+4. THE local runtime HTTP endpoint SHALL bind to 127.0.0.1 (localhost) only and SHALL NOT be accessible from external networks. The canonical base URL SHALL use hostname 'localhost' for WebView loading.
 5. THE Android_Wrapper SHALL configure cleartext traffic policy to allow localhost only if needed, otherwise HTTPS only
 6. THE Android_Wrapper SHALL block untrusted navigation by allowlisting app origins only
 7. THE Android_Wrapper SHALL document all exposed JavaScript interfaces and their security implications
 8. THE Android_Wrapper SHALL prevent WebView from loading content from untrusted origins
+9. THE Android_Wrapper SHALL configure network security policy to allow cleartext HTTP traffic ONLY for hostname 'localhost' and SHALL block cleartext traffic to all other destinations. The policy SHALL be verified to work on target API levels 24-34.
+10. THE Android_Wrapper SHALL start the embedded HTTP server asynchronously on a background thread to avoid blocking Application.onCreate() and SHALL NOT perform I/O operations on the main thread during server initialization.

@@ -17,11 +17,11 @@ The Android APK Wrapper is a native Android application that hosts the complete 
 
 The design follows a **thin native wrapper** pattern where:
 - The Android app serves as a minimal hosting layer around the complete axolync-browser web application
+- An embedded HTTP server (NanoHTTPD) managed by Application-scoped ServerManager serves static assets from bundled storage to WebView via http://localhost:<port>/. The server binds to 127.0.0.1 but uses canonical URL with hostname 'localhost' for cleartext compatibility. Server starts asynchronously on background thread to avoid blocking app startup. Server lifetime equals process lifetime and survives Activity recreation.
 - The Android app runs the built axolync-browser client artifacts directly in WebView; source TypeScript remains in the submodule as the authoritative source
 - The axolync-browser submodule is the authoritative source - no modification or repackaging of web app code
 - Native-to-web communication uses a minimal, well-defined JavaScript bridge
 - The wrapper acts as a native container that hosts the complete web application as-is
-- Built/bundled output from axolync-browser is served as static assets from `file:///android_asset/` (no embedded server in v1)
 
 This approach minimizes platform-specific code duplication, leverages the mature web implementation as the source of truth, and ensures the Android app is essentially a native shell around the unmodified axolync-browser web application.
 
@@ -354,7 +354,92 @@ fun isAllowedOrigin(uri: Uri): Boolean {
 - Top-level navigation checks are necessary but insufficient - subresource/network request restrictions are enforced via `shouldInterceptRequest`
 - WebView is configured to block all untrusted origins for both navigation and resource loading
 
-### 8. Asset Management
+### 8. ServerManager (Application-Scoped)
+
+**Responsibility**: Manage embedded HTTP server lifecycle at application scope with async startup and concurrency-safe operations.
+
+**Key Methods**:
+```kotlin
+class ServerManager private constructor(private val context: Context) {
+    enum class ServerState { STARTING, READY, FAILED }
+    
+    data class ServerMetrics(
+        val state: ServerState,
+        val port: Int?,
+        val startDurationMs: Long?,
+        val failureCategory: String?
+    )
+    
+    fun startServerAsync()  // Async, idempotent, concurrency-safe
+    fun getBaseUrl(): String?  // Returns http://localhost:<port> or null
+    fun getServerState(): ServerState
+    fun isReady(): Boolean
+    fun getMetrics(): ServerMetrics
+    fun getFailureReason(): String?
+    
+    companion object {
+        fun getInstance(context: Context): ServerManager
+    }
+}
+```
+
+**Implementation Details**:
+- Singleton pattern ensures server survives Activity recreation
+- Server starts asynchronously on background thread (does not block Application.onCreate())
+- State transitions: STARTING → READY or FAILED
+- Canonical base URL uses 'localhost' hostname (not 127.0.0.1 IP literal) for cleartext compatibility
+- Server binds to 127.0.0.1 (localhost only, no external access)
+- Server lifetime equals process lifetime (no explicit stop needed)
+- Idempotent startServerAsync() - safe to call multiple times
+- Observability metrics: state, port, start duration, failure category
+
+**Startup Sequence**:
+1. Application.onCreate() calls ServerManager.getInstance(context).startServerAsync()
+2. startServerAsync() returns immediately (non-blocking)
+3. Background thread starts LocalHttpServer on 127.0.0.1:0 (auto-assign port)
+4. On success: state = READY, baseUrl = "http://localhost:<port>"
+5. On failure: state = FAILED, failureReason captured
+6. MainActivity checks state and proceeds when READY or shows error if FAILED
+
+### 9. LocalHttpServer (NanoHTTPD)
+
+**Responsibility**: Serve bundled web application assets via HTTP on localhost with security hardening.
+
+**Key Methods**:
+```kotlin
+class LocalHttpServer(
+    private val context: Context,
+    private val port: Int = 0  // 0 = auto-assign
+) : NanoHTTPD("127.0.0.1", port) {
+    override fun serve(session: IHTTPSession): Response
+    fun getServerUrl(): String  // Returns http://localhost:<port>
+    fun isRunning(): Boolean
+}
+```
+
+**Implementation Details**:
+- Extends NanoHTTPD 2.3.1 (~100KB)
+- Binds to 127.0.0.1 only (localhost, no external access)
+- Serves assets from `assets/axolync-browser/` directory
+- Canonical URL: http://localhost:<port>/ (hostname, not IP literal)
+- Security hardening:
+  - Path traversal protection (normalize then reject "..", encoded patterns, backslashes, null bytes)
+  - Method restrictions (only GET and HEAD allowed)
+  - HEAD request support (returns headers only, no body)
+  - SPA fallback for extensionless routes (serves index.html)
+  - API paths (/api/*) excluded from SPA fallback
+  - Explicit MIME type mapping
+- Health check endpoint: /health returns JSON status
+- Default route: / → /index.html
+
+**Security Constraints**:
+- Localhost-only binding prevents external network access
+- Network security config allows cleartext ONLY for 'localhost' hostname
+- Path traversal attacks blocked via normalization + rejection
+- Only GET and HEAD methods allowed (405 for others)
+- Untrusted origins blocked by WebView origin allowlist
+
+### 10. Asset Management
 
 **Responsibility**: Bundle and serve web application assets.
 
@@ -378,14 +463,14 @@ app/src/main/assets/
 ```
 
 **Loading Strategy**:
-- WebView loads `file:///android_asset/axolync-browser/index.html` on startup
-- All assets served directly from the built/bundled output of the axolync-browser submodule as static files
-- The entire axolync-browser web application runs within the WebView from bundled assets (no embedded server in v1)
+- Embedded HTTP server (LocalHttpServer) serves assets from `assets/axolync-browser/` directory
+- WebView loads from http://localhost:<port>/index.html (canonical URL with hostname)
+- All assets served via localhost HTTP (not file:// protocol)
 - No modification or repackaging of web app code - axolync-browser remains the authoritative source
-- Web Workers supported via `file://` protocol
+- Web Workers supported via HTTP protocol
 - Plugin packages stored in app-private storage: `context.filesDir/plugins/`
 
-### 9. Plugin Package Management
+### 11. Plugin Package Management
 
 **Responsibility**: Install, update, and validate plugin packages.
 
@@ -432,7 +517,7 @@ data class PluginMetadata(
 7. On success: Delete backup after grace period
 8. On failure: Rollback to backup, log error
 
-### 10. Network Connectivity Monitor
+### 12. Network Connectivity Monitor
 
 **Responsibility**: Detect and report network availability.
 

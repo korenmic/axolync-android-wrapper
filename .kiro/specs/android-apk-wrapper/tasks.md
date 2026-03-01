@@ -17,6 +17,17 @@ The implementation uses Kotlin for all native Android components and integrates 
   - Set up basic project structure: activities, services, utils packages
   - _Requirements: 1.1, 1.4_
 
+- [ ] 1.5 Implement ServerManager and LocalHttpServer
+  - Create ServerManager singleton with async startup on background thread
+  - Implement LocalHttpServer with NanoHTTPD (hardened, SPA fallback)
+  - Use canonical URL http://localhost:<port>/ (not 127.0.0.1)
+  - Add traversal protection, method restrictions
+  - Implement /health endpoint
+  - Add observability metrics
+  - Configure network security config for localhost cleartext
+  - Verify cleartext works on API 24-34
+  - _Requirements: 6.1, 6.2, 11.3, 11.4, 11.9, 11.10_
+
 - [x] 2. Implement SplashActivity and app initialization flow
   - [x] 2.1 Create SplashActivity with splash screen layout
     - Implement SplashActivity that displays splash screen on launch
@@ -31,13 +42,15 @@ The implementation uses Kotlin for all native Android components and integrates 
     - Test timeout behavior on slow initialization
     - _Requirements: 2.1, 2.2_
 
-- [x] 3. Implement WebView configuration and asset loading
+- [ ] 3. Implement WebView configuration and asset loading
   - [x] 3.1 Create MainActivity with WebView setup
     - Implement MainActivity as primary activity hosting WebView
     - Configure WebView with security settings (JavaScript enabled, file access disabled, mixed content blocked)
     - Implement strict origin validation with exact scheme+host+port matching
     - Implement origin enforcement for both top-level navigation and subresource requests (e.g., shouldInterceptRequest), blocking all untrusted origins
-    - Load bundled assets from `file:///android_asset/axolync-browser/index.html`
+    - Load web app from ServerManager.getBaseUrl() (http://localhost:<port>/index.html)
+    - Use Android SplashScreen API with setKeepOnScreenCondition { !ServerManager.isReady() }
+    - MainActivity only handles READY or FAILED states (no recreate loop)
     - Disable remote debugging in production builds
     - _Requirements: 1.2, 1.3, 6.1, 6.3, 6.4, 11.2, 11.6, 11.8_
   
