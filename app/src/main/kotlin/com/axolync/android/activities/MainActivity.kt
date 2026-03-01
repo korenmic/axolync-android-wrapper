@@ -42,21 +42,31 @@ class MainActivity : AppCompatActivity() {
     private lateinit var networkMonitor: NetworkMonitor
     private lateinit var pluginManager: PluginManager
     private lateinit var nativeBridge: NativeBridge
+    
+    private var splashStartTime = 0L
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     companion object {
         private const val TAG = "MainActivity"
         private const val PERMISSION_REQUEST_CODE = 1001
+        private const val MINIMUM_SPLASH_DURATION_MS = 2000L
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Install splash screen and keep it visible until server ready
+        // Record splash start time
+        splashStartTime = System.currentTimeMillis()
+        
+        // Install splash screen and keep it visible until server ready AND minimum time elapsed
         // MUST be called BEFORE super.onCreate()
         val splashScreen = installSplashScreen()
         splashScreen.setKeepOnScreenCondition {
             val serverManager = ServerManager.getInstance(applicationContext)
-            // Keep splash visible while STARTING
-            // Dismiss when READY or FAILED
-            serverManager.getServerState() == ServerManager.ServerState.STARTING
+            val elapsedTime = System.currentTimeMillis() - splashStartTime
+            val serverNotReady = serverManager.getServerState() == ServerManager.ServerState.STARTING
+            val minimumTimeNotElapsed = elapsedTime < MINIMUM_SPLASH_DURATION_MS
+            
+            // Keep splash visible while server starting OR minimum time not elapsed
+            serverNotReady || minimumTimeNotElapsed
         }
         
         super.onCreate(savedInstanceState)
@@ -74,10 +84,9 @@ class MainActivity : AppCompatActivity() {
         val serverManager = ServerManager.getInstance(this)
         when (serverManager.getServerState()) {
             ServerManager.ServerState.STARTING -> {
-                // Still starting - just wait, splash will handle visibility
-                Log.i(TAG, "Server still starting, waiting...")
-                // DO NOT return early - continue to load web app
-                // The splash screen will stay visible until server is ready
+                // Still starting - wait for it to become ready
+                Log.i(TAG, "Server still starting, will wait...")
+                waitForServerReady()
             }
             ServerManager.ServerState.FAILED -> {
                 // Server failed - show error
@@ -86,13 +95,36 @@ class MainActivity : AppCompatActivity() {
                 return
             }
             ServerManager.ServerState.READY -> {
-                // Server ready - proceed normally
-                Log.i(TAG, "Server ready")
+                // Server ready - load immediately
+                Log.i(TAG, "Server ready, loading web app")
+                loadWebApp()
             }
         }
-        
-        // Load web app (will wait for server if still starting)
-        loadWebApp()
+    }
+    
+    /**
+     * Wait for server to become ready, then load web app.
+     */
+    private fun waitForServerReady() {
+        mainHandler.postDelayed(object : Runnable {
+            override fun run() {
+                val serverManager = ServerManager.getInstance(this@MainActivity)
+                when (serverManager.getServerState()) {
+                    ServerManager.ServerState.READY -> {
+                        Log.i(TAG, "Server became ready, loading web app")
+                        loadWebApp()
+                    }
+                    ServerManager.ServerState.FAILED -> {
+                        Log.e(TAG, "Server failed while waiting")
+                        showServerFailedError()
+                    }
+                    ServerManager.ServerState.STARTING -> {
+                        // Still starting, check again
+                        mainHandler.postDelayed(this, 100)
+                    }
+                }
+            }
+        }, 100)
     }
     
     override fun onDestroy() {
