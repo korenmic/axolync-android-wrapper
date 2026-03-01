@@ -1,99 +1,96 @@
 # Axolync Android Wrapper
 
-Native Android application that hosts the Axolync karaoke companion web experience (axolync-browser v1.0.0) within a WebView.
+Native Android shell for the Axolync web app.
+
+The wrapper starts an embedded localhost HTTP server inside the app process, then loads the web UI in `WebView` from `http://localhost:<port>/index.html`.
+
+## What This Project Does
+
+- Packages `axolync-browser` web assets into an APK.
+- Runs a local in-app HTTP server (`NanoHTTPD`) to serve those assets.
+- Uses `WebView` for rendering + native bridge for Android integrations (permissions, audio, lifecycle).
+- Preserves Axolync state-machine/UI behavior from the web app baseline.
+
+## Runtime Flow
+
+1. `AxolyncApplication` starts `ServerManager` asynchronously.
+2. `SplashActivity` shows full-screen splash art while server reaches READY (with timeout guard).
+3. `MainActivity` loads WebView from localhost URL.
+4. Web app JS runs from served assets (not `file://`).
 
 ## Project Structure
 
-- `app/` - Android application module
-  - `src/main/kotlin/com/axolync/android/` - Kotlin source code
-    - `activities/` - Android activities (SplashActivity, MainActivity)
-    - `services/` - Native services (AudioCaptureService, PermissionManager, LifecycleCoordinator)
-    - `bridge/` - JavaScript bridge for native-web communication
-    - `utils/` - Utility classes (PluginManager, NetworkMonitor)
-  - `src/main/res/` - Android resources (layouts, drawables, strings)
-  - `src/main/assets/axolync-browser/` - Built web application assets (copied from submodule)
+- `app/src/main/kotlin/com/axolync/android/`
+  - `AxolyncApplication.kt` - app entry, server bootstrap
+  - `activities/`
+    - `SplashActivity.kt` - fullscreen splash + server readiness gate
+    - `MainActivity.kt` - WebView host + bridge wiring
+  - `server/`
+    - `ServerManager.kt` - app-scope server lifecycle/state
+    - `LocalHttpServer.kt` - localhost asset server
+  - `bridge/` - JS bridge between Android and web app
+  - `services/` - audio capture, permission handling, lifecycle coordination
+  - `utils/` - plugin/network helpers
+- `app/src/main/res/`
+  - `layout/activity_splash.xml` - fullscreen splash layout
+  - `drawable-port/` + `drawable-land/` - orientation-specific splash art
+  - `xml/network_security_config.xml` - cleartext policy (localhost-only)
+- `app/src/main/assets/axolync-browser/` - copied web assets used by server
+- `.kiro/specs/android-apk-wrapper/` - requirements/design/tasks
 
-## Setup
-
-### Prerequisites
-
-- Android Studio Hedgehog (2023.1.1) or later
-- JDK 17
-- Android SDK with API 34
-- Git
-
-### Clone and Initialize
-
-```bash
-# Clone the repository
-git clone <repository-url>
-cd axolync-android-wrapper
-
-# Initialize and update the axolync-browser submodule
-git submodule init
-git submodule update
-
-# Build axolync-browser (requires Node.js and npm)
-cd axolync-browser
-npm install
-npm run build
-cd ..
-
-# Open in Android Studio
-# File > Open > Select the project root directory
-```
-
-### Build
-
-The Gradle build is configured to automatically copy built axolync-browser assets to `app/src/main/assets/axolync-browser/` during the build process.
+## Build and Test
 
 ```bash
-# Build the project
-./gradlew build
+# Compile Kotlin
+./gradlew :app:compileDebugKotlin
 
-# Install on connected device
-./gradlew installDebug
+# Unit tests
+./gradlew :app:testDebugUnitTest
+
+# Build both normal + demo debug APKs
+./gradlew :app:assembleNormalDebug :app:assembleDemoDebug
 ```
 
-## Configuration
+APK output:
+- `app/build/outputs/apk/normal/debug/app-normal-debug.apk`
+- `app/build/outputs/apk/demo/debug/app-demo-debug.apk`
 
-### Minimum SDK: 24 (Android 7.0)
-### Target SDK: 34 (Android 14)
+## Local Parity Server (same serving style as embedded Android server)
 
-## Dependencies
+To debug the same static asset behavior on desktop (without Vite), run:
 
-- AndroidX Core, AppCompat, Material Components
-- Kotlin Coroutines
-- Lifecycle components
-- Kotest (property-based testing)
-- JUnit, Mockito (unit testing)
+```bash
+node scripts/serve-android-assets.mjs --port=4173
+```
+
+Then open:
+
+```text
+http://127.0.0.1:4173/index.html
+```
+
+## Asset Sync From axolync-browser
+
+`preBuild` depends on `copyAxolyncBrowserAssets`.
+It copies:
+- `axolync-browser/dist/**`
+- `axolync-browser/index.html` (rewritten from `/src/main.ts` to `/main.js` for static runtime)
+into `app/src/main/assets/axolync-browser/`.
 
 ## Permissions
 
-The app requires the following permissions:
-- `RECORD_AUDIO` - For microphone access (song identification)
-- `INTERNET` - For network connectivity (song identification, lyric sync)
-- `ACCESS_NETWORK_STATE` - For network status monitoring
+- `RECORD_AUDIO`
+- `INTERNET`
+- `ACCESS_NETWORK_STATE`
 
-## Architecture
+## Important Notes
 
-The Android wrapper follows a thin native wrapper pattern:
-- Native Android layer handles platform-specific concerns (permissions, audio, lifecycle)
-- JavaScript bridge provides minimal native-web communication
-- Web application layer (axolync-browser) runs unmodified in WebView
+- Wrapper runtime is `http://localhost:<port>/...` by design.
+- If UI looks like static HTML (buttons not behaving), check JS module path serving in `LocalHttpServer` first.
+- Splash rendering is custom activity-based (full-screen image), not Android 12 icon-style splash.
 
-See `.kiro/specs/android-apk-wrapper/design.md` for detailed architecture documentation.
+## AI Contributor Docs
 
-## Testing
-
-```bash
-# Run unit tests
-./gradlew test
-
-# Run instrumented tests
-./gradlew connectedAndroidTest
-```
-
-## License
-
-[License information]
+- `docs/ai-global.md`
+- `docs/ai-per-task.md`
+- `docs/ai-local-system.md`

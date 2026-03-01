@@ -14,7 +14,6 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
-import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.axolync.android.BuildConfig
 import com.axolync.android.R
 import com.axolync.android.bridge.NativeBridge
@@ -43,32 +42,16 @@ class MainActivity : AppCompatActivity() {
     private lateinit var pluginManager: PluginManager
     private lateinit var nativeBridge: NativeBridge
     
-    private var splashStartTime = 0L
     private val mainHandler = Handler(Looper.getMainLooper())
+    private var hasLoadedWebApp = false
 
     companion object {
         private const val TAG = "MainActivity"
         private const val PERMISSION_REQUEST_CODE = 1001
-        private const val MINIMUM_SPLASH_DURATION_MS = 2000L
+        private const val SERVER_READY_TIMEOUT_MS = 5000L
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Record splash start time
-        splashStartTime = System.currentTimeMillis()
-        
-        // Install splash screen and keep it visible until server ready AND minimum time elapsed
-        // MUST be called BEFORE super.onCreate()
-        val splashScreen = installSplashScreen()
-        splashScreen.setKeepOnScreenCondition {
-            val serverManager = ServerManager.getInstance(applicationContext)
-            val elapsedTime = System.currentTimeMillis() - splashStartTime
-            val serverNotReady = serverManager.getServerState() == ServerManager.ServerState.STARTING
-            val minimumTimeNotElapsed = elapsedTime < MINIMUM_SPLASH_DURATION_MS
-            
-            // Keep splash visible while server starting OR minimum time not elapsed
-            serverNotReady || minimumTimeNotElapsed
-        }
-        
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
@@ -106,9 +89,11 @@ class MainActivity : AppCompatActivity() {
      * Wait for server to become ready, then load web app.
      */
     private fun waitForServerReady() {
+        val startTime = System.currentTimeMillis()
         mainHandler.postDelayed(object : Runnable {
             override fun run() {
                 val serverManager = ServerManager.getInstance(this@MainActivity)
+                val elapsed = System.currentTimeMillis() - startTime
                 when (serverManager.getServerState()) {
                     ServerManager.ServerState.READY -> {
                         Log.i(TAG, "Server became ready, loading web app")
@@ -119,8 +104,13 @@ class MainActivity : AppCompatActivity() {
                         showServerFailedError()
                     }
                     ServerManager.ServerState.STARTING -> {
-                        // Still starting, check again
-                        mainHandler.postDelayed(this, 100)
+                        if (elapsed >= SERVER_READY_TIMEOUT_MS) {
+                            Log.e(TAG, "Timed out waiting for embedded server to become ready")
+                            showServerTimeoutError()
+                        } else {
+                            // Still starting, check again
+                            mainHandler.postDelayed(this, 100)
+                        }
                     }
                 }
             }
@@ -131,6 +121,7 @@ class MainActivity : AppCompatActivity() {
         super.onDestroy()
         
         // DO NOT stop server here - lifetime equals process lifetime
+        mainHandler.removeCallbacksAndMessages(null)
         
         if (::networkMonitor.isInitialized) {
             networkMonitor.unregisterCallback()
@@ -323,6 +314,9 @@ class MainActivity : AppCompatActivity() {
      * Requirements: 6.1, 6.3, 6.4
      */
     private fun loadWebApp() {
+        if (hasLoadedWebApp) {
+            return
+        }
         val serverManager = ServerManager.getInstance(this)
         val baseUrl = serverManager.getBaseUrl()
         
@@ -332,9 +326,14 @@ class MainActivity : AppCompatActivity() {
             return
         }
         
-        val url = "$baseUrl/index.html"
-        Log.i(TAG, "Loading web app from $url (canonical localhost URL)")
+        val url = if (BuildConfig.DEMO_MODE) {
+            "$baseUrl/index.html?mode=demo-android"
+        } else {
+            "$baseUrl/index.html"
+        }
+        Log.i(TAG, "Loading web app from $url (canonical localhost URL, demoMode=${BuildConfig.DEMO_MODE})")
         webView.loadUrl(url)
+        hasLoadedWebApp = true
     }
 
     /**
@@ -363,20 +362,35 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
+    private fun showServerTimeoutError() {
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Server Startup Timeout")
+            .setMessage("Embedded server did not become ready in time. Please restart the app.")
+            .setPositiveButton("Exit") { _, _ -> finish() }
+            .setCancelable(false)
+            .show()
+    }
+
     override fun onResume() {
         super.onResume()
-        lifecycleCoordinator.onAppResume()
+        if (::lifecycleCoordinator.isInitialized) {
+            lifecycleCoordinator.onAppResume()
+        }
     }
 
     override fun onPause() {
         super.onPause()
-        lifecycleCoordinator.onAppPause()
+        if (::lifecycleCoordinator.isInitialized) {
+            lifecycleCoordinator.onAppPause()
+        }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
-        val state = lifecycleCoordinator.saveState()
-        outState.putAll(state)
+        if (::lifecycleCoordinator.isInitialized) {
+            val state = lifecycleCoordinator.saveState()
+            outState.putAll(state)
+        }
     }
 
     override fun onLowMemory() {

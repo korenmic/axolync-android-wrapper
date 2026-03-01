@@ -17,6 +17,21 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    flavorDimensions += "mode"
+    productFlavors {
+        create("normal") {
+            dimension = "mode"
+            buildConfigField("boolean", "DEMO_MODE", "false")
+        }
+        create("demo") {
+            dimension = "mode"
+            applicationIdSuffix = ".demo"
+            versionNameSuffix = "-demo"
+            resValue("string", "app_name", "Axolync Demo")
+            buildConfigField("boolean", "DEMO_MODE", "true")
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
@@ -95,9 +110,13 @@ tasks.register<Copy>("copyAxolyncBrowserAssets") {
     from("${rootProject.projectDir}/axolync-browser/dist") {
         include("**/*")
     }
-    // Copy index.html from root
+    // Copy index.html from root but rewrite module entry to built output.
+    // Android wrapper serves prebuilt assets and cannot resolve /src/main.ts directly.
     from("${rootProject.projectDir}/axolync-browser") {
         include("index.html")
+        filter { line: String ->
+            line.replace("src=\"/src/main.ts\"", "src=\"/main.js\"")
+        }
     }
     into("${projectDir}/src/main/assets/axolync-browser")
     
