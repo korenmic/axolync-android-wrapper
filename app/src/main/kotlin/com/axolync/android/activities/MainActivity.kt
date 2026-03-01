@@ -1,5 +1,7 @@
 package com.axolync.android.activities
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
 import android.webkit.WebResourceRequest
@@ -8,24 +10,106 @@ import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
 import com.axolync.android.BuildConfig
 import com.axolync.android.R
+import com.axolync.android.bridge.NativeBridge
+import com.axolync.android.services.AudioCaptureService
+import com.axolync.android.services.LifecycleCoordinator
+import com.axolync.android.services.PermissionManager
+import com.axolync.android.utils.NetworkMonitor
+import com.axolync.android.utils.PluginManager
 
 /**
  * MainActivity hosts the WebView and coordinates native services.
  * This is the primary activity that runs the Axolync web application.
+ * 
+ * Requirements: 1.2, 1.3, 2.1, 2.4
  */
 class MainActivity : AppCompatActivity() {
 
     private lateinit var webView: WebView
+    private lateinit var permissionManager: PermissionManager
+    private lateinit var audioCaptureService: AudioCaptureService
+    private lateinit var lifecycleCoordinator: LifecycleCoordinator
+    private lateinit var networkMonitor: NetworkMonitor
+    private lateinit var pluginManager: PluginManager
+    private lateinit var nativeBridge: NativeBridge
+
+    companion object {
+        private const val TAG = "MainActivity"
+        private const val PERMISSION_REQUEST_CODE = 1001
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
         webView = findViewById(R.id.webview)
+        
+        // Initialize all services
+        initializeServices()
+        
+        // Configure WebView
         configureWebView()
+        
+        // Restore state if available
+        savedInstanceState?.let {
+            lifecycleCoordinator.restoreState(it)
+        }
+        
+        // Load web app
         loadWebApp()
+        
+        // Signal SplashActivity that we're ready
+        SplashActivity.signalReady()
+    }
+
+    /**
+     * Initialize all native services and wire them together.
+     * Requirements: 1.2, 1.3, 2.1, 2.4
+     */
+    private fun initializeServices() {
+        // Initialize PermissionManager
+        permissionManager = PermissionManager(this)
+        
+        // Initialize AudioCaptureService
+        audioCaptureService = AudioCaptureService()
+        
+        // Initialize NetworkMonitor
+        networkMonitor = NetworkMonitor(this)
+        
+        // Initialize PluginManager
+        pluginManager = PluginManager(this)
+        
+        // Initialize NativeBridge with all dependencies
+        nativeBridge = NativeBridge(
+            webView = webView,
+            audioCaptureService = audioCaptureService,
+            permissionManager = permissionManager,
+            getNetworkStatusCallback = {
+                val isOnline = networkMonitor.isOnline()
+                val connectionType = when (networkMonitor.getConnectionType()) {
+                    NetworkMonitor.ConnectionType.WIFI -> "wifi"
+                    NetworkMonitor.ConnectionType.CELLULAR -> "cellular"
+                    NetworkMonitor.ConnectionType.NONE -> "none"
+                }
+                Pair(isOnline, connectionType)
+            }
+        )
+        
+        // Initialize LifecycleCoordinator
+        lifecycleCoordinator = LifecycleCoordinator(
+            context = this,
+            webView = webView,
+            audioCaptureService = audioCaptureService,
+            nativeBridge = nativeBridge
+        )
+        
+        // Register network callback
+        networkMonitor.registerCallback { isOnline ->
+            nativeBridge.notifyLifecycleEvent(if (isOnline) "online" else "offline")
+        }
     }
 
     /**
@@ -51,7 +135,9 @@ class MainActivity : AppCompatActivity() {
             // Only bundled android_asset content is loaded by design
             allowFileAccess = false
             allowContentAccess = false
+            @Suppress("DEPRECATION")
             allowFileAccessFromFileURLs = false
+            @Suppress("DEPRECATION")
             allowUniversalAccessFromFileURLs = false
             
             // Security: Block mixed content (Requirement 11.6)
@@ -60,6 +146,9 @@ class MainActivity : AppCompatActivity() {
             // Cache configuration
             cacheMode = WebSettings.LOAD_DEFAULT
         }
+
+        // Register NativeBridge as JavaScript interface
+        webView.addJavascriptInterface(nativeBridge, "AndroidBridge")
 
         // Set up WebViewClient with strict origin validation
         webView.webViewClient = object : WebViewClient() {
@@ -145,20 +234,58 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        // TODO: Restore audio capture if previously active
+        lifecycleCoordinator.onAppResume()
     }
 
     override fun onPause() {
         super.onPause()
-        // TODO: Suspend audio capture
+        lifecycleCoordinator.onAppPause()
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        val state = lifecycleCoordinator.saveState()
+        outState.putAll(state)
     }
 
     override fun onDestroy() {
         super.onDestroy()
+        networkMonitor.unregisterCallback()
+        audioCaptureService.stopCapture()
         webView.destroy()
     }
 
-    companion object {
-        private const val TAG = "MainActivity"
+    override fun onLowMemory() {
+        super.onLowMemory()
+        lifecycleCoordinator.onLowMemory()
+    }
+
+    /**
+     * Handle permission request results.
+     * Requirements: 3.1, 3.2
+     */
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        
+        if (requestCode == PERMISSION_REQUEST_CODE) {
+            val granted = grantResults.isNotEmpty() && 
+                         grantResults[0] == PackageManager.PERMISSION_GRANTED
+            
+            val status = if (granted) {
+                "granted"
+            } else {
+                if (ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.RECORD_AUDIO)) {
+                    "denied"
+                } else {
+                    "denied_permanently"
+                }
+            }
+            
+            nativeBridge.notifyPermissionResult(status)
+        }
     }
 }
