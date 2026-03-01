@@ -85,19 +85,49 @@ class LocalHttpServer(
         val assetPath = "$assetBasePath${uri}"
         
         return try {
+            // For HEAD requests, check existence and get MIME type without opening stream
+            if (session.method == Method.HEAD) {
+                // Check if asset exists by attempting to list (doesn't open stream)
+                try {
+                    assetManager.open(assetPath).use { /* Just check existence */ }
+                    val mimeType = getMimeType(uri)
+                    Log.d(TAG, "HEAD: $assetPath exists ($mimeType)")
+                    val response = newFixedLengthResponse(Response.Status.OK, mimeType, "")
+                    response.addHeader("Content-Type", mimeType)
+                    return response
+                } catch (e: IOException) {
+                    // Asset not found - check SPA fallback
+                    if (shouldFallbackToIndex(uri)) {
+                        try {
+                            assetManager.open("$assetBasePath/index.html").use { /* Just check existence */ }
+                            Log.d(TAG, "HEAD: SPA fallback for $uri")
+                            val response = newFixedLengthResponse(Response.Status.OK, "text/html", "")
+                            response.addHeader("Content-Type", "text/html")
+                            return response
+                        } catch (indexError: IOException) {
+                            Log.w(TAG, "HEAD: Asset not found: $assetPath")
+                            return newFixedLengthResponse(
+                                Response.Status.NOT_FOUND,
+                                "text/plain",
+                                ""
+                            )
+                        }
+                    } else {
+                        Log.w(TAG, "HEAD: Asset not found: $assetPath")
+                        return newFixedLengthResponse(
+                            Response.Status.NOT_FOUND,
+                            "text/plain",
+                            ""
+                        )
+                    }
+                }
+            }
+            
+            // GET request: open stream and return full content
             val inputStream = assetManager.open(assetPath)
             val mimeType = getMimeType(uri)
             
             Log.d(TAG, "Serving: $assetPath ($mimeType)")
-            
-            // HEAD request: return headers only (no body)
-            if (session.method == Method.HEAD) {
-                val response = newFixedLengthResponse(Response.Status.OK, mimeType, "")
-                response.addHeader("Content-Type", mimeType)
-                return response
-            }
-            
-            // GET request: return full content
             newChunkedResponse(Response.Status.OK, mimeType, inputStream)
         } catch (e: IOException) {
             // SPA FALLBACK: If asset not found and not a file extension, serve index.html
@@ -106,13 +136,6 @@ class LocalHttpServer(
                 Log.d(TAG, "SPA fallback: serving index.html for $uri")
                 return try {
                     val indexStream = assetManager.open("$assetBasePath/index.html")
-                    
-                    if (session.method == Method.HEAD) {
-                        val response = newFixedLengthResponse(Response.Status.OK, "text/html", "")
-                        response.addHeader("Content-Type", "text/html")
-                        return response
-                    }
-                    
                     newChunkedResponse(Response.Status.OK, "text/html", indexStream)
                 } catch (indexError: IOException) {
                     Log.e(TAG, "Failed to serve index.html fallback", indexError)

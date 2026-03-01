@@ -4,6 +4,8 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
@@ -40,20 +42,36 @@ class MainActivity : AppCompatActivity() {
     private lateinit var networkMonitor: NetworkMonitor
     private lateinit var pluginManager: PluginManager
     private lateinit var nativeBridge: NativeBridge
+    
+    private var bootstrapped = false
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private var startupTimeoutRunnable: Runnable? = null
 
     companion object {
         private const val TAG = "MainActivity"
         private const val PERMISSION_REQUEST_CODE = 1001
+        private const val STARTUP_TIMEOUT_MS = 5000L
+        private const val STARTUP_RETRY_INTERVAL_MS = 100L
+        private const val MINIMUM_SPLASH_DURATION_MS = 2000L
     }
+    
+    private var splashStartTime = 0L
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Install splash screen and keep it visible until server ready
+        // Record splash start time for minimum duration enforcement
+        splashStartTime = System.currentTimeMillis()
+        
+        // Install splash screen and keep it visible until server ready AND minimum duration elapsed
         val splashScreen = installSplashScreen()
         splashScreen.setKeepOnScreenCondition {
             val serverManager = ServerManager.getInstance(this)
-            // Keep splash visible while STARTING
-            // Dismiss when READY or FAILED
-            serverManager.getServerState() == ServerManager.ServerState.STARTING
+            val elapsedTime = System.currentTimeMillis() - splashStartTime
+            val serverNotReady = serverManager.getServerState() == ServerManager.ServerState.STARTING
+            val minimumTimeNotElapsed = elapsedTime < MINIMUM_SPLASH_DURATION_MS
+            
+            // Keep splash visible while STARTING OR minimum time not elapsed
+            // Dismiss only when READY/FAILED AND minimum time elapsed
+            serverNotReady || minimumTimeNotElapsed
         }
         
         super.onCreate(savedInstanceState)
@@ -61,29 +79,115 @@ class MainActivity : AppCompatActivity() {
 
         webView = findViewById(R.id.webview)
         
-        // Check server state (STATE-AWARE, no recreate loop)
+        // Check server state and handle continuation
         val serverManager = ServerManager.getInstance(this)
         when (serverManager.getServerState()) {
             ServerManager.ServerState.STARTING -> {
-                // Still starting - splash should handle this
-                // This case should not happen if splash condition works correctly
-                // If it does happen, just log and wait (splash will eventually dismiss)
-                Log.w(TAG, "Server still starting when MainActivity.onCreate() called - splash should be visible")
-                // DO NOT call recreate() or show dialog - just return
-                // Splash will dismiss when state changes
-                return
+                // Server still starting - schedule retry loop with timeout
+                Log.i(TAG, "Server still starting, scheduling retry loop with timeout")
+                scheduleStartupRetry()
             }
             ServerManager.ServerState.FAILED -> {
-                // Server failed - show error
+                // Server failed - show error (after minimum splash duration)
                 Log.e(TAG, "Server failed to start")
-                showServerFailedError()
-                return
+                enforceMinimumSplashDuration {
+                    showServerFailedError()
+                }
             }
             ServerManager.ServerState.READY -> {
-                // Server ready - proceed normally
+                // Server ready - proceed with bootstrap (after minimum splash duration)
                 Log.i(TAG, "Server ready, proceeding with initialization")
+                enforceMinimumSplashDuration {
+                    bootstrapApplication(savedInstanceState)
+                }
             }
         }
+    }
+    
+    /**
+     * Enforce minimum splash duration before executing action.
+     * Ensures splash screen shows for at least MINIMUM_SPLASH_DURATION_MS.
+     */
+    private fun enforceMinimumSplashDuration(action: () -> Unit) {
+        val elapsedTime = System.currentTimeMillis() - splashStartTime
+        val remainingTime = MINIMUM_SPLASH_DURATION_MS - elapsedTime
+        
+        if (remainingTime > 0) {
+            Log.i(TAG, "Enforcing minimum splash duration, waiting ${remainingTime}ms")
+            mainHandler.postDelayed(action, remainingTime)
+        } else {
+            action()
+        }
+    }
+    
+    /**
+     * Schedule retry loop to check server state with hard timeout.
+     * Ensures STARTING state doesn't dead-end.
+     */
+    private fun scheduleStartupRetry() {
+        val startTime = System.currentTimeMillis()
+        
+        val retryRunnable = object : Runnable {
+            override fun run() {
+                val serverManager = ServerManager.getInstance(this@MainActivity)
+                val elapsed = System.currentTimeMillis() - startTime
+                
+                when (serverManager.getServerState()) {
+                    ServerManager.ServerState.READY -> {
+                        Log.i(TAG, "Server became ready after ${elapsed}ms")
+                        cancelStartupTimeout()
+                        enforceMinimumSplashDuration {
+                            bootstrapApplication(null)
+                        }
+                    }
+                    ServerManager.ServerState.FAILED -> {
+                        Log.e(TAG, "Server failed after ${elapsed}ms")
+                        cancelStartupTimeout()
+                        enforceMinimumSplashDuration {
+                            showServerFailedError()
+                        }
+                    }
+                    ServerManager.ServerState.STARTING -> {
+                        if (elapsed >= STARTUP_TIMEOUT_MS) {
+                            Log.e(TAG, "Server startup timeout after ${elapsed}ms")
+                            cancelStartupTimeout()
+                            enforceMinimumSplashDuration {
+                                showStartupTimeoutError()
+                            }
+                        } else {
+                            // Still starting, retry
+                            mainHandler.postDelayed(this, STARTUP_RETRY_INTERVAL_MS)
+                        }
+                    }
+                }
+            }
+        }
+        
+        startupTimeoutRunnable = retryRunnable
+        mainHandler.postDelayed(retryRunnable, STARTUP_RETRY_INTERVAL_MS)
+    }
+    
+    /**
+     * Cancel startup timeout/retry loop.
+     */
+    private fun cancelStartupTimeout() {
+        startupTimeoutRunnable?.let {
+            mainHandler.removeCallbacks(it)
+            startupTimeoutRunnable = null
+        }
+    }
+    
+    /**
+     * Bootstrap application once server is ready.
+     * Idempotent - only runs once per activity instance.
+     */
+    private fun bootstrapApplication(savedInstanceState: Bundle?) {
+        if (bootstrapped) {
+            Log.w(TAG, "Application already bootstrapped, skipping")
+            return
+        }
+        
+        bootstrapped = true
         
         // Initialize all services
         initializeServices()
@@ -98,6 +202,37 @@ class MainActivity : AppCompatActivity() {
         
         // Load web app from localhost server
         loadWebApp()
+    }
+    
+    /**
+     * Show error dialog when startup times out.
+     */
+    private fun showStartupTimeoutError() {
+        val message = "Server startup timed out after ${STARTUP_TIMEOUT_MS}ms.\n\nPlease restart the app."
+        
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Startup Timeout")
+            .setMessage(message)
+            .setPositiveButton("Exit") { _, _ -> finish() }
+            .setCancelable(false)
+            .show()
+    }
+    
+    override fun onDestroy() {
+        super.onDestroy()
+        
+        // Cancel any pending startup retry
+        cancelStartupTimeout()
+        
+        // DO NOT stop server here - lifetime equals process lifetime
+        
+        if (::networkMonitor.isInitialized) {
+            networkMonitor.unregisterCallback()
+        }
+        if (::audioCaptureService.isInitialized) {
+            audioCaptureService.stopCapture()
+        }
+        webView.destroy()
     }
 
     /**
@@ -338,19 +473,11 @@ class MainActivity : AppCompatActivity() {
         outState.putAll(state)
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        
-        // DO NOT stop server here - lifetime equals process lifetime
-        
-        networkMonitor.unregisterCallback()
-        audioCaptureService.stopCapture()
-        webView.destroy()
-    }
-
     override fun onLowMemory() {
         super.onLowMemory()
-        lifecycleCoordinator.onLowMemory()
+        if (::lifecycleCoordinator.isInitialized) {
+            lifecycleCoordinator.onLowMemory()
+        }
     }
 
     /**

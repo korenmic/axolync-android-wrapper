@@ -3,6 +3,7 @@ package com.axolync.android.server
 import android.content.Context
 import android.util.Log
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
 /**
@@ -30,6 +31,7 @@ class ServerManager private constructor(private val context: Context) {
     )
     
     private val serverState = AtomicReference(ServerState.STARTING)
+    private val startScheduled = AtomicBoolean(false)
     private val executor = Executors.newSingleThreadExecutor()
     private var localHttpServer: LocalHttpServer? = null
     private var baseUrl: String? = null
@@ -72,9 +74,9 @@ class ServerManager private constructor(private val context: Context) {
             return
         }
         
-        // If already STARTING, do nothing (already in progress)
-        if (serverState.get() == ServerState.STARTING && localHttpServer != null) {
-            Log.i(TAG, "Server start already in progress")
+        // Atomic in-flight guard: prevent duplicate scheduling
+        if (!startScheduled.compareAndSet(false, true)) {
+            Log.i(TAG, "Server start already scheduled")
             return
         }
         
