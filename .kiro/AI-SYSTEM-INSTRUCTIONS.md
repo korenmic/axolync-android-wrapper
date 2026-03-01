@@ -45,7 +45,9 @@ This project runs on a **Steam Deck** (Arch Linux host) with development work is
 # These will block and wait for user input - DO NOT USE
 apt install package-name          # Asks for confirmation
 npm init                          # Asks questions
-git config --global user.name     # May prompt
+git add -p                        # Interactive staging - FORBIDDEN
+git add --patch                   # Interactive staging - FORBIDDEN
+git rebase -i                     # Interactive rebase - FORBIDDEN
 ```
 
 **How to handle interactive commands:**
@@ -53,16 +55,32 @@ git config --global user.name     # May prompt
 # Use flags to auto-answer
 apt install -y package-name       # -y auto-confirms
 npm init -y                       # -y uses defaults
-echo "value" | command            # Pipe input
+git add file.txt                  # Non-interactive add
 
 # Or check if already configured
 git config user.name || echo "Not set"  # Check first, don't prompt
 ```
 
+**CRITICAL - Git Interactive Commands:**
+- **NEVER use `git add -p` or `git add --patch`** - these are interactive
+- **NEVER use `git rebase -i`** - this is interactive
+- **ALWAYS use `git add <file>` or `git add -A`** - these are non-interactive
+- **If you need to stage specific changes, use `git add <specific-files>`**
+
 **If a command becomes interactive unexpectedly:**
-1. Cancel it (Ctrl+C will be sent automatically)
-2. Research the non-interactive flags/options
-3. Retry with proper flags
+1. **Timeout detection:** If a command runs for >10 minutes with no output, assume it's waiting for input
+2. **Self-diagnose:** Check if the command has interactive flags
+3. **Abort and retry:** Use non-interactive alternatives
+4. **Document the issue:** Note what went wrong for future reference
+
+**Example of proper timeout handling:**
+```bash
+# If this hangs for >10 minutes, it's likely interactive
+git add -p file.txt
+
+# Abort mentally and use:
+git add file.txt  # Non-interactive alternative
+```
 
 ## How to Execute Commands in Container
 
