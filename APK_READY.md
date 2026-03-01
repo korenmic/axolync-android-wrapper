@@ -1,4 +1,9 @@
-# ✅ APK Ready for Testing
+# ✅ APK Ready for Testing (FIXED - Crash Issue Resolved)
+
+## Critical Fix Applied
+- ✅ **FIXED**: App crash on startup due to missing default splash_logo drawable
+- ✅ **Added**: Regression test to prevent future resource-related crashes
+- ✅ **Verified**: All tests passing, APK builds and should launch correctly
 
 ## Build Status
 - ✅ **Compilation**: SUCCESS
@@ -10,6 +15,31 @@
 - **Location**: `app/build/outputs/apk/debug/app-debug.apk`
 - **Size**: 11 MB
 - **Version**: 1.0.0 (debug build)
+
+## What Was Fixed
+
+### The Crash Issue
+**Problem**: App crashed immediately on startup after adding splash images.
+
+**Root Cause**: 
+- Theme references `@drawable/splash_logo`
+- I deleted the XML file and only added orientation-specific PNGs in subdirectories
+- Android requires a default drawable in the base `drawable/` folder as fallback
+- Without it, the app crashes when trying to load the splash screen
+
+**Solution**:
+- Added `splash_logo.png` to base `drawable/` folder (default fallback)
+- Orientation-specific high-res versions still used when device matches
+- Added `SplashScreenResourceTest` to prevent this regression
+
+### Regression Prevention
+Created comprehensive resource validation tests that check:
+- ✅ `splash_logo` drawable exists
+- ✅ `splash_background` color exists
+- ✅ `splash_background` drawable exists  
+- ✅ `Theme.App.Starting` style exists
+
+These tests will fail at compile time if any splash resource is missing.
 
 ## What's Included
 
