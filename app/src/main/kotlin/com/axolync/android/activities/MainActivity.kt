@@ -131,9 +131,9 @@ class MainActivity : AppCompatActivity() {
             domStorageEnabled = true
             databaseEnabled = true
             
-            // Security: Disable arbitrary file access (Requirement 11.6, 11.8)
-            // Only bundled android_asset content is loaded by design
-            allowFileAccess = false
+            // Security: Allow file access ONLY for bundled assets (Requirement 11.6, 11.8)
+            // This is required to load file:///android_asset/ content
+            allowFileAccess = true
             allowContentAccess = false
             @Suppress("DEPRECATION")
             allowFileAccessFromFileURLs = false
@@ -145,6 +145,13 @@ class MainActivity : AppCompatActivity() {
             
             // Cache configuration
             cacheMode = WebSettings.LOAD_DEFAULT
+            
+            // Enable viewport and zoom for responsive web app
+            useWideViewPort = true
+            loadWithOverviewMode = true
+            
+            // Enable media playback
+            mediaPlaybackRequiresUserGesture = false
         }
 
         // Register NativeBridge as JavaScript interface
