@@ -315,7 +315,7 @@ The implementation uses Kotlin for all native Android components and integrates 
     - Test APK installation and first-run experience
     - _Requirements: 11.2_
   
-  - [ ] 20.2 End-to-end validation with axolync-browser integration
+  - [x] 20.2 End-to-end validation with axolync-browser integration
     - Verify complete plugin pipeline execution (SongSense, SyncEngine, LyricFlow)
     - Verify Web Workers function correctly
     - Verify state machine transitions match web baseline
