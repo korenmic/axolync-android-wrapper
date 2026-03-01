@@ -202,7 +202,7 @@ class MainActivity : AppCompatActivity() {
                 request: WebResourceRequest
             ): Boolean {
                 val url = request.url.toString()
-                return if (isAllowedOrigin(request.uri)) {
+                return if (isAllowedOrigin(request.url)) {
                     false  // Allow navigation
                 } else {
                     // Block untrusted navigation

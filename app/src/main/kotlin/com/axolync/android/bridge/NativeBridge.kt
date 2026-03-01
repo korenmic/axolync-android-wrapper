@@ -5,7 +5,6 @@ import android.os.Looper
 import android.util.Log
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
-import com.axolync.android.activities.SplashActivity
 import com.axolync.android.services.AudioCaptureService
 import com.axolync.android.services.PermissionManager
 import org.json.JSONArray
@@ -149,13 +148,14 @@ class NativeBridge(
 
     /**
      * Called by web application when initialization is complete.
-     * Signals SplashActivity to transition to MainActivity.
+     * No longer needed with Android SplashScreen API (splash dismisses automatically).
+     * Kept for backward compatibility with web app.
      * Requirements: 2.1, 2.2
      */
     @JavascriptInterface
     fun appReady() {
         Log.d(TAG, "Web app signaled ready state")
-        SplashActivity.signalReady()
+        // No action needed - Android SplashScreen API handles splash dismissal
     }
 
     /**
