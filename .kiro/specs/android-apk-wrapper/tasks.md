@@ -338,6 +338,33 @@ The implementation uses Kotlin for all native Android components and integrates 
 - [x] 21. Final checkpoint - Ensure all tests pass
   - Run the full defined test suite for current scope, record pass/fail output, and proceed only on green status.
 
+- [x] 22. V5 Review Blocking Fixes
+  - [x] 22.1 Fix MainActivity STARTING continuation
+    - Replace early-return logic with deterministic continuation
+    - Add retry loop with Handler and hard timeout (5 seconds)
+    - Add bootstrap guard flag to prevent duplicate initialization
+    - Handle READY, FAILED, and timeout states deterministically
+    - _Requirements: 2.1, 2.2, 11.3_
+  
+  - [x] 22.2 Fix ServerManager idempotency/concurrency guard
+    - Add AtomicBoolean startScheduled for in-flight guard
+    - Use compareAndSet to prevent duplicate start tasks
+    - Maintain no-op semantics for READY, STARTING, FAILED states
+    - _Requirements: 6.1, 11.3_
+  
+  - [x] 22.3 Fix LocalHttpServer HEAD stream handling
+    - Check asset existence without opening stream for HEAD requests
+    - Return headers-only response for HEAD
+    - Prevent stream handle leaks
+    - _Requirements: 6.1, 11.3_
+  
+  - [x] 22.4 Add required tests for V5 fixes
+    - Add ServerManager concurrency/idempotency tests
+    - Add MainActivity startup-state tests
+    - Add LocalHttpServer HEAD tests
+    - Add localhost cleartext verification instrumentation test
+    - _Requirements: 11.3_
+
 ## Notes
 
 - Tasks labeled (Optional) may be skipped only for MVP builds; mandatory tasks remain required for production readiness

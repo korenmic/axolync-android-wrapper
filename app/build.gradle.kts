@@ -81,6 +81,9 @@ dependencies {
     // Mockito for unit tests
     testImplementation("org.mockito:mockito-core:5.8.0")
     testImplementation("org.mockito.kotlin:mockito-kotlin:5.2.1")
+    
+    // Robolectric for Android unit tests
+    testImplementation("org.robolectric:robolectric:4.11.1")
 }
 
 // Task to copy built axolync-browser assets to app/src/main/assets/axolync-browser/
