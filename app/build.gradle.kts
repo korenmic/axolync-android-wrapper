@@ -118,6 +118,15 @@ tasks.register<Copy>("copyAxolyncBrowserAssets") {
             line.replace("src=\"/src/main.ts\"", "src=\"/main.js\"")
         }
     }
+
+    // Copy demo plugin workers and demo media assets used by deterministic demo mode.
+    from("${rootProject.projectDir}/axolync-browser/demo") {
+        include("plugins/*.js")
+        include("assets/*.ogg")
+        include("assets/*.wav")
+        include("assets/*.lrc")
+        into("demo")
+    }
     into("${projectDir}/src/main/assets/axolync-browser")
     
     doFirst {
