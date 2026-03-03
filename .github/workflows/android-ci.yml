@@ -14,10 +14,23 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Prepare browser bundle
+    - name: Clone axolync-browser (authenticated)
+      env:
+        GH_TOKEN: ${{ github.token }}
       run: |
-        mkdir -p browser-src
-        cp -R app/src/main/assets/axolync-browser/. browser-src/
+        git clone --depth 1 "https://x-access-token:${GH_TOKEN}@github.com/korenmic/axolync-browser.git" browser-src
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Build axolync-browser
+      run: |
+        cd browser-src
+        npm ci
+        npm run build
+        cd ..
     
     - name: Set up JDK 17
       uses: actions/setup-java@v4
@@ -31,12 +44,12 @@ jobs:
     
     - name: Run unit tests
       env:
-        AXOLYNC_BUILDER_BROWSER_NORMAL: ${{ github.workspace }}/browser-src
+        AXOLYNC_BUILDER_BROWSER_NORMAL: ${{ github.workspace }}/browser-src/dist
       run: ./gradlew test --console=plain
     
     - name: Run lint
       env:
-        AXOLYNC_BUILDER_BROWSER_NORMAL: ${{ github.workspace }}/browser-src
+        AXOLYNC_BUILDER_BROWSER_NORMAL: ${{ github.workspace }}/browser-src/dist
       run: ./gradlew lint --console=plain
       continue-on-error: true
     
@@ -62,10 +75,23 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Prepare browser bundle
+    - name: Clone axolync-browser (authenticated)
+      env:
+        GH_TOKEN: ${{ github.token }}
       run: |
-        mkdir -p browser-src
-        cp -R app/src/main/assets/axolync-browser/. browser-src/
+        git clone --depth 1 "https://x-access-token:${GH_TOKEN}@github.com/korenmic/axolync-browser.git" browser-src
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Build axolync-browser
+      run: |
+        cd browser-src
+        npm ci
+        npm run build
+        cd ..
     
     - name: Set up JDK 17
       uses: actions/setup-java@v4
@@ -79,7 +105,7 @@ jobs:
     
     - name: Build debug APK variants
       env:
-        AXOLYNC_BUILDER_BROWSER_NORMAL: ${{ github.workspace }}/browser-src
+        AXOLYNC_BUILDER_BROWSER_NORMAL: ${{ github.workspace }}/browser-src/dist
       run: ./gradlew :app:assembleNormalDebug :app:assembleDemoDebug --console=plain
 
     - name: Upload debug APKs
