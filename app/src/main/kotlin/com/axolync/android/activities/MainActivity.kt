@@ -8,6 +8,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.view.MotionEvent
+import android.view.View
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
@@ -226,11 +227,16 @@ class MainActivity : AppCompatActivity() {
             mediaPlaybackRequiresUserGesture = false
         }
 
+        webView.isVerticalScrollBarEnabled = false
+        webView.isHorizontalScrollBarEnabled = false
+        webView.overScrollMode = View.OVER_SCROLL_NEVER
+
         // Defensive pinch block: consume multi-touch gestures before WebView scaling logic.
-        webView.setOnTouchListener { _, motionEvent ->
+        webView.setOnTouchListener { view, motionEvent ->
             if (motionEvent.actionMasked == MotionEvent.ACTION_POINTER_DOWN || motionEvent.pointerCount > 1) {
                 true
             } else {
+                view.parent?.requestDisallowInterceptTouchEvent(true)
                 false
             }
         }
@@ -277,6 +283,26 @@ class MainActivity : AppCompatActivity() {
                 // Block untrusted subresource requests
                 Log.w(TAG, "Blocked subresource request to untrusted origin: $url")
                 return WebResourceResponse("text/plain", "UTF-8", null)
+            }
+
+            override fun onPageFinished(view: WebView, url: String) {
+                super.onPageFinished(view, url)
+                val js = """
+                    (function () {
+                      document.body.dataset.platform = 'android-wrapper';
+                      var viewport = document.querySelector('meta[name="viewport"]');
+                      if (!viewport) {
+                        viewport = document.createElement('meta');
+                        viewport.setAttribute('name', 'viewport');
+                        document.head.appendChild(viewport);
+                      }
+                      viewport.setAttribute('content', 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover');
+                      document.documentElement.style.overscrollBehavior = 'none';
+                      document.body.style.overscrollBehavior = 'none';
+                      document.body.style.touchAction = 'none';
+                    })();
+                """.trimIndent()
+                view.evaluateJavascript(js, null)
             }
         }
     }

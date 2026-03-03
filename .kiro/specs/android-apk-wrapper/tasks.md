@@ -379,6 +379,24 @@ The implementation uses Kotlin for all native Android components and integrates 
     - Add static guard test that `MainActivity` keeps zoom support disabled
     - _Requirements: 3.1, 3.2, 6.1, 11.3_
 
+- [x] 24. Consume builder server bundle artifacts and preinstalled plugin assets
+  - [x] 24.1 Support builder-provided browser bundle paths in Gradle asset packaging
+    - Read `AXOLYNC_BUILDER_BROWSER_NORMAL` / `AXOLYNC_BUILDER_BROWSER_DEMO` when present.
+    - Prefer builder bundle assets over local submodule build paths for APK packaging.
+  - [x] 24.2 Include preinstalled plugin manifest and zip assets in APK package
+    - Ensure `plugins/preinstalled/manifest.json` and referenced zips are copied into app assets.
+    - Preserve local submodule fallback behavior when builder paths are not provided.
+  - [x] 24.3 Add regression test/guard
+    - Add a unit/Gradle guard that verifies preinstalled manifest assets are present after copy task.
+
+- [x] 25. Enforce Android touch lock semantics without breaking lyric drag zoom UX
+  - [x] 25.1 Disable native page scroll + pinch while preserving WebView JS touch pipeline
+    - Keep browser page pan/scroll disabled in wrapped runtime.
+    - Keep single-finger lyric drag and double-tap gestures usable by browser-side lyric zoom logic.
+  - [x] 25.2 Add regression coverage and CI workflow stability fixes
+    - Add/update test proving zoom controls remain disabled and WebView touch lock wiring remains active.
+    - Fix Android CI workflow setup-node/cache path reliability for this repository layout.
+
 ## Notes
 
 - Tasks labeled (Optional) may be skipped only for MVP builds; mandatory tasks remain required for production readiness

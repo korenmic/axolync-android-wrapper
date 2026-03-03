@@ -14,5 +14,8 @@ class MainActivityWebViewZoomGuardTest {
         assertTrue(source.contains("displayZoomControls = false"))
         assertTrue(source.contains("textZoom = 100"))
         assertTrue(source.contains("webView.setOnTouchListener"))
+        assertTrue(source.contains("webView.overScrollMode = View.OVER_SCROLL_NEVER"))
+        assertTrue(source.contains("viewport.setAttribute('content'"))
+        assertTrue(source.contains("user-scalable=no"))
     }
 }

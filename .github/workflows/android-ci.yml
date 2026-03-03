@@ -21,7 +21,6 @@ jobs:
       with:
         node-version: '20'
         cache: 'npm'
-        cache-dependency-path: axolync-browser/package-lock.json
     
     - name: Build axolync-browser
       run: |
@@ -76,7 +75,6 @@ jobs:
       with:
         node-version: '20'
         cache: 'npm'
-        cache-dependency-path: axolync-browser/package-lock.json
     
     - name: Build axolync-browser
       run: |
@@ -95,11 +93,11 @@ jobs:
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
     
-    - name: Build debug APK
-      run: ./gradlew assembleDebug --console=plain
-    
-    - name: Upload debug APK
+    - name: Build debug APK variants
+      run: ./gradlew :app:assembleNormalDebug :app:assembleDemoDebug --console=plain
+
+    - name: Upload debug APKs
       uses: actions/upload-artifact@v4
       with:
-        name: debug-apk
-        path: app/build/outputs/apk/debug/*.apk
+        name: debug-apks
+        path: app/build/outputs/apk/**/**/*.apk

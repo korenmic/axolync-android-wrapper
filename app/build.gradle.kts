@@ -114,48 +114,79 @@ tasks.register<Exec>("buildAxolyncBrowserDist") {
     inputs.dir(file("${rootProject.projectDir}/axolync-browser/src"))
     inputs.dir(file("${rootProject.projectDir}/axolync-browser/demo"))
     outputs.dir(file("${rootProject.projectDir}/axolync-browser/dist"))
+
+    // Builder-provided artifacts already include compiled browser bundle + preinstalled plugins.
+    onlyIf {
+        val builderBundle = providers.environmentVariable("AXOLYNC_BUILDER_BROWSER_NORMAL").orNull
+        builderBundle.isNullOrBlank()
+    }
 }
 
-tasks.register<Copy>("copyAxolyncBrowserAssets") {
+tasks.register("copyAxolyncBrowserAssets") {
     description = "Copy built axolync-browser assets to Android assets directory"
     group = "build"
-    
-    // Copy dist directory contents
-    from("${rootProject.projectDir}/axolync-browser/dist") {
-        include("**/*")
-    }
-    // Copy index.html from root but rewrite module entry to built output.
-    // Android wrapper serves prebuilt assets and cannot resolve /src/main.ts directly.
-    from("${rootProject.projectDir}/axolync-browser") {
-        include("index.html")
-        filter { line: String ->
-            line.replace("src=\"/src/main.ts\"", "src=\"/main.js\"")
-        }
-    }
 
-    // Copy demo plugin workers and demo media assets used by deterministic demo mode.
-    from("${rootProject.projectDir}/axolync-browser/demo") {
-        include("plugins/*.js")
-        include("assets/*.ogg")
-        include("assets/*.wav")
-        include("assets/*.lrc")
-        into("demo")
-    }
-    into("${projectDir}/src/main/assets/axolync-browser")
-    
     doFirst {
-        val sourceDir = file("${rootProject.projectDir}/axolync-browser/dist")
-        if (!sourceDir.exists()) {
-            throw GradleException(
-                "axolync-browser dist directory not found at ${sourceDir.absolutePath}. " +
-                "Please build axolync-browser first or add it as a Git submodule."
-            )
+        val targetDir = file("${projectDir}/src/main/assets/axolync-browser")
+        delete(targetDir)
+        targetDir.mkdirs()
+
+        val builderBundlePath = providers.environmentVariable("AXOLYNC_BUILDER_BROWSER_NORMAL").orNull
+        val sourceRoot = if (!builderBundlePath.isNullOrBlank()) {
+            file(builderBundlePath)
+        } else {
+            file("${rootProject.projectDir}/axolync-browser")
         }
-        val indexHtml = file("${rootProject.projectDir}/axolync-browser/index.html")
-        if (!indexHtml.exists()) {
-            throw GradleException(
-                "axolync-browser index.html not found at ${indexHtml.absolutePath}."
-            )
+
+        if (!sourceRoot.exists()) {
+            throw GradleException("Browser source root not found at ${sourceRoot.absolutePath}")
+        }
+
+        val builderHasCompiledRoot = file("${sourceRoot.absolutePath}/index.html").exists()
+            && file("${sourceRoot.absolutePath}/assets").exists()
+
+        if (builderHasCompiledRoot) {
+            copy {
+                from(sourceRoot)
+                into(targetDir)
+            }
+        } else {
+            val distDir = file("${rootProject.projectDir}/axolync-browser/dist")
+            val indexHtml = file("${rootProject.projectDir}/axolync-browser/index.html")
+            if (!distDir.exists()) {
+                throw GradleException(
+                    "axolync-browser dist directory not found at ${distDir.absolutePath}. " +
+                    "Please build axolync-browser first or provide AXOLYNC_BUILDER_BROWSER_NORMAL."
+                )
+            }
+            if (!indexHtml.exists()) {
+                throw GradleException("axolync-browser index.html not found at ${indexHtml.absolutePath}.")
+            }
+
+            copy {
+                from(distDir) { include("**/*") }
+                into(targetDir)
+            }
+            copy {
+                from(indexHtml)
+                into(targetDir)
+                filter { line: String -> line.replace("src=\"/src/main.ts\"", "src=\"/main.js\"") }
+            }
+            copy {
+                from("${rootProject.projectDir}/axolync-browser/demo") {
+                    include("plugins/*.js")
+                    include("assets/*.ogg")
+                    include("assets/*.wav")
+                    include("assets/*.lrc")
+                    into("demo")
+                }
+                into(targetDir)
+            }
+        }
+
+        val preinstalledManifest = file("${targetDir.absolutePath}/plugins/preinstalled/manifest.json")
+        if (!preinstalledManifest.exists()) {
+            logger.lifecycle("No preinstalled plugin manifest found in copied browser assets (${preinstalledManifest.absolutePath})")
         }
     }
 }
