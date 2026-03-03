@@ -117,6 +117,12 @@ tasks.register<Exec>("buildAxolyncBrowserDist") {
 
     // Builder-provided artifacts already include compiled browser bundle + preinstalled plugins.
     onlyIf {
+        val skipAssetSync = providers.environmentVariable("AXOLYNC_SKIP_BROWSER_ASSET_SYNC")
+            .orNull
+            ?.equals("true", ignoreCase = true) == true
+        if (skipAssetSync) {
+            return@onlyIf false
+        }
         val builderBundle = providers.environmentVariable("AXOLYNC_BUILDER_BROWSER_NORMAL").orNull
         builderBundle.isNullOrBlank()
     }
@@ -127,6 +133,14 @@ tasks.register("copyAxolyncBrowserAssets") {
     group = "build"
 
     doFirst {
+        val skipAssetSync = providers.environmentVariable("AXOLYNC_SKIP_BROWSER_ASSET_SYNC")
+            .orNull
+            ?.equals("true", ignoreCase = true) == true
+        if (skipAssetSync) {
+            logger.lifecycle("Skipping browser asset sync (AXOLYNC_SKIP_BROWSER_ASSET_SYNC=true)")
+            return@doFirst
+        }
+
         val targetDir = file("${projectDir}/src/main/assets/axolync-browser")
         delete(targetDir)
         targetDir.mkdirs()
