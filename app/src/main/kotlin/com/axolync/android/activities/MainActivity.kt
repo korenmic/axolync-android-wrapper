@@ -230,6 +230,10 @@ class MainActivity : AppCompatActivity() {
         webView.isVerticalScrollBarEnabled = false
         webView.isHorizontalScrollBarEnabled = false
         webView.overScrollMode = View.OVER_SCROLL_NEVER
+        webView.isLongClickable = false
+        webView.setHapticFeedbackEnabled(false)
+        // Disable long-press text-selection/context menu while preserving JS touch events.
+        webView.setOnLongClickListener { true }
 
         // Defensive pinch block: consume multi-touch gestures before WebView scaling logic.
         webView.setOnTouchListener { view, motionEvent ->
@@ -300,6 +304,10 @@ class MainActivity : AppCompatActivity() {
                       document.documentElement.style.overscrollBehavior = 'none';
                       document.body.style.overscrollBehavior = 'none';
                       document.body.style.touchAction = 'none';
+                      document.documentElement.style.webkitUserSelect = 'none';
+                      document.body.style.webkitUserSelect = 'none';
+                      document.body.style.userSelect = 'none';
+                      document.body.style.webkitTouchCallout = 'none';
                     })();
                 """.trimIndent()
                 view.evaluateJavascript(js, null)

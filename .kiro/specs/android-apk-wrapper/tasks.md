@@ -370,7 +370,7 @@ The implementation uses Kotlin for all native Android components and integrates 
     - Explicitly disable WebView zoom controls/support in `MainActivity` settings
     - Keep text zoom fixed at 100%
     - Ensure pinch gestures do not scale the page
-  - [x] 23.2 Expose status-bar song signal bridge APIs for plugin-side consumption
+  - [ ] 23.2 Expose status-bar song signal bridge APIs for plugin-side consumption
     - Add native notification-listener service for capturing latest song-like status entries
     - Add `AndroidBridge` JS APIs to check/request status-bar access and fetch latest match payload
     - Add manifest wiring for notification listener service
@@ -396,6 +396,16 @@ The implementation uses Kotlin for all native Android components and integrates 
   - [x] 25.2 Add regression coverage and CI workflow stability fixes
     - Add/update test proving zoom controls remain disabled and WebView touch lock wiring remains active.
     - Fix Android CI workflow setup-node/cache path reliability for this repository layout.
+
+- [x] 26. Restore notification-access visibility and disable long-press text selection in wrapped WebView
+  - [x] 26.1 Disable Android long-press text selection menu while preserving JS touch gestures
+    - Disable WebView long-click interaction and touch callout behavior for wrapped runtime.
+    - Keep lyric drag and double-tap gesture pipeline functional.
+  - [x] 26.2 Rewire notification access flow to app-scoped listener settings
+    - Mark notification listener service exported for system binding visibility.
+    - Prefer app-scoped notification listener detail settings intent with fallback to full listener settings screen.
+  - [x] 26.3 Add regression guards for manifest and native bridge wiring
+    - Add static tests for service export/permission wiring and intent fallback coverage markers.
 
 ## Notes
 

@@ -167,10 +167,21 @@ class NativeBridge(
     fun requestStatusBarAccessPermission() {
         mainHandler.post {
             try {
-                val intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).apply {
+                // Prefer app-scoped details page when available so Axolync appears directly.
+                val detailIntent = Intent("android.settings.NOTIFICATION_LISTENER_DETAIL_SETTINGS").apply {
+                    putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 }
-                context.startActivity(intent)
+                val resolver = context.packageManager
+                if (detailIntent.resolveActivity(resolver) != null) {
+                    context.startActivity(detailIntent)
+                    return@post
+                }
+
+                val fallbackIntent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(fallbackIntent)
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to open notification listener settings", e)
             }
