@@ -1,19 +1,21 @@
 package com.axolync.android.properties
 
-import io.kotest.core.spec.style.StringSpec
-import io.kotest.matchers.shouldBe
-import io.kotest.property.Arb
-import io.kotest.property.arbitrary.int
-import io.kotest.property.checkAll
+import org.junit.Assert.assertEquals
+import org.junit.Test
+import kotlin.random.Random
 
 /**
- * Example property-based test using Kotest.
- * Property tests will be added in subsequent tasks.
+ * JUnit property-style sanity test (kept intentionally small for quick CI signal).
  */
-class PropertyTestExample : StringSpec({
-    "addition is commutative" {
-        checkAll(100, Arb.int(), Arb.int()) { a, b ->
-            (a + b) shouldBe (b + a)
+class PropertyTestExample {
+
+    @Test
+    fun `addition remains commutative over random samples`() {
+        val random = Random(9001)
+        repeat(500) {
+            val a = random.nextInt()
+            val b = random.nextInt()
+            assertEquals(a + b, b + a)
         }
     }
-})
+}

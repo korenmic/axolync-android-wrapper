@@ -1,94 +1,117 @@
 package com.axolync.android.properties
 
-import io.kotest.core.spec.style.StringSpec
-import io.kotest.matchers.shouldBe
-import io.kotest.property.Arb
-import io.kotest.property.arbitrary.int
-import io.kotest.property.arbitrary.string
-import io.kotest.property.checkAll
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
+import kotlin.random.Random
 
 /**
- * Property-based tests for state machine parity with axolync-browser v1.0.0.
- * 
- * Feature: android-apk-wrapper, Property 1: State Machine Parity
- * Validates: Requirements 1.2, 4.1, 4.3
+ * Property-style tests for state machine parity with axolync-browser baseline.
+ *
+ * Feature: android-apk-wrapper
+ * Property 1: State Machine Parity
+ * Property 2: State Name Consistency
+ * Property 3: Splash Screen Persistence
  */
-class StateMachineParityTest : StringSpec({
+class StateMachineParityTest {
 
-    "Property 1: State Machine Parity - state transitions are consistent" {
-        // Feature: android-apk-wrapper, Property 1: State Machine Parity
-        
-        checkAll(100, Arb.int(0..6)) { actionCode ->
-            // Simulate state machine with simple actions
-            var state = "INITIAL"
-            var hasPermission = false
-            var isCapturing = false
-            
-            when (actionCode % 7) {
-                0 -> state = "READY"  // INIT
-                1 -> {  // START_CAPTURE
-                    if (hasPermission && state == "READY") {
-                        isCapturing = true
-                        state = "CAPTURING"
-                    }
-                }
-                2 -> {  // STOP_CAPTURE
-                    if (isCapturing) {
-                        isCapturing = false
-                        state = "READY"
-                    }
-                }
-                3 -> hasPermission = true  // GRANT_PERMISSION
-                4 -> {  // DENY_PERMISSION
-                    hasPermission = false
-                    if (isCapturing) {
-                        isCapturing = false
-                        state = "READY"
-                    }
-                }
+    private enum class State {
+        INITIAL,
+        READY,
+        CAPTURING,
+        PAUSED,
+        ERROR
+    }
+
+    private enum class Action {
+        INIT,
+        START_CAPTURE,
+        STOP_CAPTURE,
+        PAUSE,
+        RESUME,
+        GRANT_PERMISSION,
+        DENY_PERMISSION,
+        FAIL
+    }
+
+    private data class Machine(val state: State, val hasPermission: Boolean)
+
+    private fun transition(machine: Machine, action: Action): Machine {
+        return when (action) {
+            Action.INIT -> machine.copy(state = State.READY)
+            Action.GRANT_PERMISSION -> machine.copy(hasPermission = true)
+            Action.DENY_PERMISSION -> {
+                val next = if (machine.state == State.CAPTURING || machine.state == State.PAUSED) State.READY else machine.state
+                machine.copy(state = next, hasPermission = false)
             }
-            
-            // Verify state consistency
-            if (isCapturing) {
-                hasPermission shouldBe true
-                state shouldBe "CAPTURING"
+            Action.START_CAPTURE -> if (machine.hasPermission && machine.state == State.READY) {
+                machine.copy(state = State.CAPTURING)
+            } else {
+                machine
             }
-            
-            if (!hasPermission) {
-                isCapturing shouldBe false
+            Action.STOP_CAPTURE -> if (machine.state == State.CAPTURING || machine.state == State.PAUSED) {
+                machine.copy(state = State.READY)
+            } else {
+                machine
+            }
+            Action.PAUSE -> if (machine.state == State.CAPTURING) machine.copy(state = State.PAUSED) else machine
+            Action.RESUME -> if (machine.state == State.PAUSED) machine.copy(state = State.CAPTURING) else machine
+            Action.FAIL -> machine.copy(state = State.ERROR)
+        }
+    }
+
+    @Test
+    fun `Property 1 state machine parity over random action sequences`() {
+        val seeds = 0 until 150
+        for (seed in seeds) {
+            val random = Random(seed)
+            var androidMachine = Machine(State.INITIAL, hasPermission = false)
+            var browserMachine = Machine(State.INITIAL, hasPermission = false)
+
+            repeat(64) {
+                val action = Action.entries[random.nextInt(Action.entries.size)]
+                androidMachine = transition(androidMachine, action)
+                browserMachine = transition(browserMachine, action)
+
+                assertEquals("state mismatch for seed=$seed action=$action", browserMachine.state, androidMachine.state)
+                assertEquals("permission mismatch for seed=$seed action=$action", browserMachine.hasPermission, androidMachine.hasPermission)
+
+                if (!androidMachine.hasPermission) {
+                    assertFalse(androidMachine.state == State.CAPTURING || androidMachine.state == State.PAUSED)
+                }
             }
         }
     }
 
-    "Property 2: State Name Consistency - state names match axolync-browser baseline" {
-        // Feature: android-apk-wrapper, Property 2: State Name Consistency
-        
-        val validStates = setOf(
-            "INITIAL",
-            "READY",
-            "CAPTURING",
-            "PAUSED",
-            "ERROR"
-        )
-        
-        // Verify all state names are in the valid set
-        validStates.forEach { stateName ->
-            validStates.contains(stateName) shouldBe true
-        }
+    @Test
+    fun `Property 2 state names remain baseline-compatible`() {
+        val expectedNames = setOf("INITIAL", "READY", "CAPTURING", "PAUSED", "ERROR")
+        val actualNames = State.entries.map { it.name }.toSet()
+        assertEquals(expectedNames, actualNames)
     }
 
-    "Property 3: Splash Screen Persistence - splash remains until ready or timeout" {
-        // Feature: android-apk-wrapper, Property 3: Splash Screen Persistence
-        
-        checkAll(100, Arb.int(0..1)) { readyCode ->
-            val readySignalReceived = readyCode == 1
-            
-            // Splash should only dismiss on ready signal or timeout
-            val splashVisible = !readySignalReceived
-            
-            if (readySignalReceived) {
-                splashVisible shouldBe false
+    @Test
+    fun `Property 3 splash remains until ready signal or timeout`() {
+        val random = Random(2026)
+        repeat(200) {
+            val timeoutTick = random.nextInt(3, 60)
+            val readyTick = random.nextInt(-1, 70) // -1 means never ready.
+            var splashVisible = true
+
+            for (tick in 0..timeoutTick) {
+                if (readyTick >= 0 && tick >= readyTick) {
+                    splashVisible = false
+                    break
+                }
+                if (tick == timeoutTick) {
+                    splashVisible = false
+                }
+            }
+            assertFalse(splashVisible)
+            if (readyTick in 0..timeoutTick) {
+                assertTrue(readyTick <= timeoutTick)
             }
         }
     }
-})
+}

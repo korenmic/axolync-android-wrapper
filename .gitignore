@@ -48,3 +48,6 @@ axolync-browser/
 
 # Codex directory (not for tracking)
 .codex/
+
+# Generated physical-device validation outputs
+tests/output/

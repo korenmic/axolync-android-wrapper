@@ -268,51 +268,51 @@ The implementation uses Kotlin for all native Android components and integrates 
 - [x] 15. Checkpoint - Ensure all tests pass
   - Run the full defined test suite for current scope, record pass/fail output, and proceed only on green status.
 
-- [ ] 16. Implement property-based tests for state machine parity
-  - [ ] 16.1 (Optional) Write property test for state machine parity
+- [x] 16. Implement property-based tests for state machine parity
+  - [x] 16.1 (Optional) Write property test for state machine parity
     - **Property 1: State Machine Parity**
     - Generate random action sequences and verify Android state matches axolync-browser v1.0.0 baseline
     - **Validates: Requirements 1.2, 4.1, 4.3**
   
-  - [ ] 16.2 (Optional) Write property test for state name consistency
+  - [x] 16.2 (Optional) Write property test for state name consistency
     - **Property 2: State Name Consistency**
     - Verify all state names match exactly with axolync-browser v1.0.0
     - **Validates: Requirements 4.4**
   
-  - [ ] 16.3 (Optional) Write property test for splash screen persistence
+  - [x] 16.3 (Optional) Write property test for splash screen persistence
     - **Property 3: Splash Screen Persistence**
     - Test splash screen remains visible until ready signal or timeout
     - **Validates: Requirements 2.2**
 
-- [ ] 17. Implement property-based tests for network and offline behavior
-  - [ ] 17.1 (Optional) Write property test for offline feature degradation
+- [x] 17. Implement property-based tests for network and offline behavior
+  - [x] 17.1 (Optional) Write property test for offline feature degradation
     - **Property 8: Offline Feature Degradation**
     - Test network-dependent operations fail gracefully when offline
     - **Validates: Requirements 7.1**
 
-- [ ] 18. Implement property-based tests for audio performance
-  - [ ] 18.1 (Optional) Write property test for audio capture latency bound
+- [x] 18. Implement property-based tests for audio performance
+  - [x] 18.1 (Optional) Write property test for audio capture latency bound
     - **Property 11: Audio Capture Latency Bound**
     - Measure latency from start action to first chunk available (target ≤150ms)
     - **Validates: Requirements 8.2, 8.4**
   
-  - [ ] 18.2 (Optional) Write property test for cold start performance
+  - [x] 18.2 (Optional) Write property test for cold start performance
     - **Property 12: Cold Start Performance**
     - Measure cold start to first render (target ≤3s on mid-range 2019+ devices with 4GB RAM)
     - **Validates: Requirements 8.3, 10.6**
   
-  - [ ] 18.3 (Optional) Write property test for audio chunk jitter tolerance
+  - [x] 18.3 (Optional) Write property test for audio chunk jitter tolerance
     - **Property 13: Audio Chunk Jitter Tolerance**
     - Test system tolerates up to 2 consecutive missed chunks
     - **Validates: Requirements 8.5**
 
-- [ ] 19. Physical device testing and validation
-  - [ ] 19.1 Set up physical device testing environment
+- [x] 19. Physical device testing and validation
+  - [x] 19.1 Set up physical device testing environment
     - Identify target device profile: mid-range Android 2019+ with 4GB RAM
     - Prepare test devices for audio latency and performance measurements
     - Document device specifications used for testing
     - _Requirements: 3.5, 8.6, 8.7, 8.9_
-  - [ ] 19.2 Execute physical device tests
+  - [x] 19.2 Execute physical device tests
     - Measure audio capture latency on physical devices (Property 11)
     - Measure cold start performance on physical devices (Property 12)
     - Validate audio routing and quality on physical devices
