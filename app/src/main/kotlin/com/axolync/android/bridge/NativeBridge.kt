@@ -12,6 +12,7 @@ import android.os.Looper
 import android.util.Log
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
+import com.axolync.android.BuildConfig
 import com.axolync.android.services.AudioCaptureService
 import com.axolync.android.services.PermissionManager
 import com.axolync.android.services.StatusBarSongSignalService
@@ -295,6 +296,58 @@ class NativeBridge(
             }
         }.toString()
     }
+
+    /**
+     * Enables or disables debug capture of raw status-bar notification payloads.
+     * When disabled, existing buffer is preserved but no new rows are appended.
+     */
+    @JavascriptInterface
+    fun setStatusBarDebugCaptureEnabled(enabled: Boolean) {
+        StatusBarSongSignalStore.setDebugCaptureEnabled(enabled)
+    }
+
+    /**
+     * Returns captured raw notification debug rows for in-app diagnostics UI.
+     */
+    @JavascriptInterface
+    fun getStatusBarDebugCaptureLog(): String {
+        val rows = StatusBarSongSignalStore.debugEntriesSnapshot(limit = 400)
+        return JSONObject().apply {
+            put("debugBuild", BuildConfig.DEBUG)
+            put("captureEnabled", StatusBarSongSignalStore.isDebugCaptureEnabled())
+            put("entryCount", rows.size)
+            put(
+                "entries",
+                JSONArray().apply {
+                    rows.forEach { row ->
+                        put(
+                            JSONObject().apply {
+                                put("sourcePackage", row.sourcePackage)
+                                put("titleRaw", row.titleRaw ?: "")
+                                put("textRaw", row.textRaw ?: "")
+                                put("subTextRaw", row.subTextRaw ?: "")
+                                put("bigTextRaw", row.bigTextRaw ?: "")
+                                put("tickerRaw", row.tickerRaw ?: "")
+                                put("category", row.category ?: "")
+                                put("capturedAtMs", row.capturedAtMs)
+                                put("parseReasonCode", row.parseReasonCode)
+                                put("parsedTitle", row.parsedTitle ?: "")
+                                put("parsedArtist", row.parsedArtist ?: "")
+                            }
+                        )
+                    }
+                }
+            )
+        }.toString()
+    }
+
+    @JavascriptInterface
+    fun clearStatusBarDebugCaptureLog() {
+        StatusBarSongSignalStore.clearDebugEntries()
+    }
+
+    @JavascriptInterface
+    fun isDebugBuild(): Boolean = BuildConfig.DEBUG
 
     /**
      * Called by web application when initialization is complete.

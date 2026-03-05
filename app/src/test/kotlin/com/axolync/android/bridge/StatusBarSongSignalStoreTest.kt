@@ -72,4 +72,47 @@ class StatusBarSongSignalStoreTest {
 
         assertEquals("Newest", StatusBarSongSignalStore.latestSignal()?.title)
     }
+
+    @Test
+    fun `debug entries append only when capture is enabled`() {
+        StatusBarSongSignalStore.clear()
+        StatusBarSongSignalStore.clearDebugEntries()
+        StatusBarSongSignalStore.setDebugCaptureEnabled(false)
+        StatusBarSongSignalStore.appendDebugEntry(
+            StatusBarNotificationDebugEntry(
+                sourcePackage = "com.shazam.android",
+                titleRaw = "Auto Shazam is on",
+                textRaw = "Now playing Even Flow by Pearl Jam",
+                subTextRaw = null,
+                bigTextRaw = null,
+                tickerRaw = null,
+                category = "status",
+                capturedAtMs = 100L,
+                parseReasonCode = "matched_now_playing_by",
+                parsedTitle = "Even Flow",
+                parsedArtist = "Pearl Jam"
+            )
+        )
+        assertEquals(0, StatusBarSongSignalStore.debugEntriesSnapshot().size)
+
+        StatusBarSongSignalStore.setDebugCaptureEnabled(true)
+        StatusBarSongSignalStore.appendDebugEntry(
+            StatusBarNotificationDebugEntry(
+                sourcePackage = "com.shazam.android",
+                titleRaw = "Alive (Live)",
+                textRaw = "Pearl Jam",
+                subTextRaw = null,
+                bigTextRaw = null,
+                tickerRaw = null,
+                category = "status",
+                capturedAtMs = 200L,
+                parseReasonCode = "matched_title_artist_card",
+                parsedTitle = "Alive (Live)",
+                parsedArtist = "Pearl Jam"
+            )
+        )
+        val rows = StatusBarSongSignalStore.debugEntriesSnapshot()
+        assertEquals(1, rows.size)
+        assertEquals("Alive (Live)", rows.first().parsedTitle)
+    }
 }

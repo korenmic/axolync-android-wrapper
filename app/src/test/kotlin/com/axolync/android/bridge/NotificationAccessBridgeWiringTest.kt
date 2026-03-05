@@ -55,4 +55,13 @@ class NotificationAccessBridgeWiringTest {
         assertTrue(source.contains("com.android.vending"))
         assertTrue(source.contains("com.sec.android.app.samsungapps"))
     }
+
+    @Test
+    fun `native bridge exposes status-bar debug capture methods for debug UI`() {
+        val source = File("src/main/kotlin/com/axolync/android/bridge/NativeBridge.kt").readText()
+        assertTrue(source.contains("setStatusBarDebugCaptureEnabled"))
+        assertTrue(source.contains("getStatusBarDebugCaptureLog"))
+        assertTrue(source.contains("clearStatusBarDebugCaptureLog"))
+        assertTrue(source.contains("isDebugBuild"))
+    }
 }
