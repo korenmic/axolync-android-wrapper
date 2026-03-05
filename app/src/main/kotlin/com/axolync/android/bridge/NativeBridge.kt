@@ -3,6 +3,8 @@ package com.axolync.android.bridge
 import android.content.Context
 import android.content.ComponentName
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import android.os.Handler
@@ -154,17 +156,62 @@ class NativeBridge(
     }
 
     /**
-     * Returns status-bar notification listener access state required by the Shazam adapter.
+     * Returns structured status-bar notification listener access state required by the Shazam adapter.
+     *
+     * Response JSON shape:
+     *   enabled     : Boolean  – true if notification listener is currently granted
+     *   state       : String   – "granted" | "not_granted" | "restricted" | "unavailable" | "error"
+     *   reasonCode  : String   – stable short code for the non-granted reason (may be empty)
+     *   message     : String   – human-readable diagnostic (may be empty)
+     *
+     * "restricted" state means the app was sideloaded on Android 13+ and the user must first
+     * go to App Info → Allow Restricted Settings before notification access can be toggled.
      */
     @JavascriptInterface
     fun getStatusBarAccessStatus(): String {
-        return JSONObject().apply {
-            put("enabled", isNotificationAccessEnabled())
-        }.toString()
+        return try {
+            val enabled = isNotificationAccessEnabled()
+            val restricted = !enabled && isRestrictedFromSensitiveSettings()
+            val state = when {
+                enabled -> "granted"
+                restricted -> "restricted"
+                else -> "not_granted"
+            }
+            val reasonCode = when (state) {
+                "restricted" -> "restricted_settings"
+                "not_granted" -> "listener_not_enabled"
+                else -> ""
+            }
+            val message = when (state) {
+                "restricted" -> "App requires 'Allow Restricted Settings' in App Info before notification access can be granted"
+                else -> ""
+            }
+            JSONObject().apply {
+                put("enabled", enabled)
+                put("state", state)
+                put("reasonCode", reasonCode)
+                put("message", message)
+            }.toString()
+        } catch (e: Exception) {
+            Log.e(TAG, "getStatusBarAccessStatus failed", e)
+            JSONObject().apply {
+                put("enabled", false)
+                put("state", "error")
+                put("reasonCode", "bridge_exception")
+                put("message", e.message ?: "Unknown error")
+            }.toString()
+        }
     }
 
     /**
      * Opens Android notification listener settings so user can grant status-bar access.
+     *
+     * Routing order:
+     *   1. ACTION_NOTIFICATION_LISTENER_DETAIL_SETTINGS (API 30+, component-scoped)
+     *   2. ACTION_NOTIFICATION_LISTENER_SETTINGS (full list fallback)
+     *
+     * If the app is in "restricted" state (sideloaded on Android 13+), callers should
+     * invoke openAppInfoSettings() first so the user can allow restricted settings.
      */
     @JavascriptInterface
     fun requestStatusBarAccessPermission() {
@@ -183,16 +230,39 @@ class NativeBridge(
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
                     detailIntent.resolveActivity(resolver) != null
                 ) {
+                    Log.d(TAG, "requestStatusBarAccessPermission: routing to DETAIL_SETTINGS")
                     context.startActivity(detailIntent)
                     return@post
                 }
 
+                Log.d(TAG, "requestStatusBarAccessPermission: routing to LISTENER_SETTINGS fallback")
                 val fallbackIntent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).apply {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 }
                 context.startActivity(fallbackIntent)
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to open notification listener settings", e)
+            }
+        }
+    }
+
+    /**
+     * Opens the system App Info page for this app.
+     * On Android 13+, the user can tap ⋮ → "Allow Restricted Settings" here to unblock
+     * notification access for sideloaded builds before going to notification access settings.
+     */
+    @JavascriptInterface
+    fun openAppInfoSettings() {
+        mainHandler.post {
+            try {
+                val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                    data = Uri.fromParts("package", context.packageName, null)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                Log.d(TAG, "openAppInfoSettings: routing to APPLICATION_DETAILS_SETTINGS")
+                context.startActivity(intent)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to open app info settings", e)
             }
         }
     }
@@ -320,5 +390,31 @@ class NativeBridge(
             "enabled_notification_listeners"
         ) ?: return false
         return enabledListeners.contains(context.packageName, ignoreCase = true)
+    }
+
+    /**
+     * Returns true if this app is likely subject to Android 13+ Restricted Settings.
+     *
+     * Restricted Settings blocks sideloaded apps (installed outside Play Store / Galaxy Store)
+     * from appearing in sensitive settings screens such as Notification Access until the user
+     * manually allows restricted settings via App Info → ⋮ → Allow Restricted Settings.
+     *
+     * Detection: if the installing source is not a known trusted store, we treat the app
+     * as restricted. This is a heuristic — it cannot be read directly from the system.
+     */
+    private fun isRestrictedFromSensitiveSettings(): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return false
+        return try {
+            val installSourceInfo = context.packageManager.getInstallSourceInfo(context.packageName)
+            val installer = installSourceInfo.installingPackageName
+            val trustedInstallers = setOf(
+                "com.android.vending",              // Google Play Store
+                "com.sec.android.app.samsungapps"   // Samsung Galaxy Store
+            )
+            installer == null || installer !in trustedInstallers
+        } catch (e: Exception) {
+            Log.w(TAG, "isRestrictedFromSensitiveSettings: could not determine installer", e)
+            false
+        }
     }
 }
