@@ -438,6 +438,12 @@ The implementation uses Kotlin for all native Android components and integrates 
   - [x] 30.2 Add regression coverage
     - Add a static/native guard that the checked-in wrapped browser asset tree contains the expected packaged worker JavaScript entrypoints.
 
+- [x] 31. Materialize stable packaged bridge-worker entrypoints during Android asset sync
+  - [x] 31.1 Copy packaged bridge workers into `/workers/*.js` during browser asset sync
+    - Derive stable wrapped-runtime worker entrypoints from the built browser bundle instead of relying on raw hashed `.ts` assets.
+  - [x] 31.2 Add regression coverage
+    - Keep the packaged-worker asset guard green after the stable `/workers/*.js` entrypoints are generated during asset sync.
+
 ## Notes
 
 - Tasks labeled (Optional) may be skipped only for MVP builds; mandatory tasks remain required for production readiness

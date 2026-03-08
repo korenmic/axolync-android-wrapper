@@ -1,0 +1,16 @@
+{
+  "pluginId": "demo-songsense",
+  "buildProfile": "release",
+  "adapters": [
+    {
+      "id": "demo-deterministic",
+      "label": "Deterministic Demo",
+      "hiddenInUi": false,
+      "defaultEnabled": true,
+      "notes": "Deterministic local match for demo playback."
+    }
+  ],
+  "defaultEnabledAdapters": [
+    "demo-deterministic"
+  ]
+}

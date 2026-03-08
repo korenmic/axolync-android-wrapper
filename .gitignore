@@ -37,14 +37,11 @@ local.properties
 # Android Profiling
 *.hprof
 
-# Built assets from axolync-browser
-app/src/main/assets/axolync-browser/
-
 # Node modules (if building axolync-browser locally)
 node_modules/
 
 # Submodule/symlink - axolync-browser
-axolync-browser/
+/axolync-browser/
 
 # Codex directory (not for tracking)
 .codex/

@@ -1,0 +1,16 @@
+{
+  "pluginId": "demo-syncengine",
+  "buildProfile": "release",
+  "adapters": [
+    {
+      "id": "demo-deterministic-sync",
+      "label": "Deterministic Demo Sync",
+      "hiddenInUi": false,
+      "defaultEnabled": true,
+      "notes": "Timeline-aligned deterministic sync for demo mode."
+    }
+  ],
+  "defaultEnabledAdapters": [
+    "demo-deterministic-sync"
+  ]
+}

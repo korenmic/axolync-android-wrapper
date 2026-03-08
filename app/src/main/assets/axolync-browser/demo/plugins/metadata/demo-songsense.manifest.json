@@ -1,0 +1,23 @@
+{
+  "id": "demo-songsense",
+  "name": "Demo SongSense",
+  "version": "1.0.0-demo",
+  "type": "SongSense",
+  "main": "demo-songsense.js",
+  "description": "Deterministic demo SongSense plugin for browser-local flows.",
+  "settings": {
+    "adapters": [
+      {
+        "id": "demo-deterministic",
+        "label": "Deterministic Demo",
+        "implemented": true,
+        "defaultEnabled": true,
+        "runtimeStatus": "stable",
+        "notes": "Deterministic local match for demo playback."
+      }
+    ],
+    "defaultEnabledAdapters": [
+      "demo-deterministic"
+    ]
+  }
+}

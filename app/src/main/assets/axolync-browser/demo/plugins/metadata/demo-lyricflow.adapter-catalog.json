@@ -1,0 +1,16 @@
+{
+  "pluginId": "demo-lyricflow",
+  "buildProfile": "release",
+  "adapters": [
+    {
+      "id": "demo-hardcoded-lyrics",
+      "label": "Hardcoded Demo Lyrics",
+      "hiddenInUi": false,
+      "defaultEnabled": true,
+      "notes": "Built-in deterministic lyric timeline."
+    }
+  ],
+  "defaultEnabledAdapters": [
+    "demo-hardcoded-lyrics"
+  ]
+}

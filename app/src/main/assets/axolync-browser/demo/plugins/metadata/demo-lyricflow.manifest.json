@@ -1,0 +1,23 @@
+{
+  "id": "demo-lyricflow",
+  "name": "Demo LyricFlow",
+  "version": "1.0.0-demo",
+  "type": "LyricFlow",
+  "main": "demo-lyricflow.js",
+  "description": "Deterministic demo LyricFlow plugin for browser-local flows.",
+  "settings": {
+    "adapters": [
+      {
+        "id": "demo-hardcoded-lyrics",
+        "label": "Hardcoded Demo Lyrics",
+        "implemented": true,
+        "defaultEnabled": true,
+        "runtimeStatus": "stable",
+        "notes": "Built-in deterministic lyric timeline."
+      }
+    ],
+    "defaultEnabledAdapters": [
+      "demo-hardcoded-lyrics"
+    ]
+  }
+}

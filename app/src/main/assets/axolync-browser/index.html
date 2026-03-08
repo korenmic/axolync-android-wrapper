@@ -1,0 +1,1462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
+  <title>Axolync Browser</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --app-bg: #000;
+      --app-text: #fff;
+      --app-font: system-ui, -apple-system, sans-serif;
+      --lyric-font: system-ui, -apple-system, sans-serif;
+      --surface-1: #111;
+      --surface-2: #1a1a1a;
+      --surface-3: #222;
+      --border: #333;
+      --muted: #888;
+      --accent-ready: #7dffb3;
+      --accent-paused: #ffd66e;
+      --accent-loading: #8bc3ff;
+      --accent-word: #4af;
+      --accent-syncloss: #ff9f4a;
+      --overlay-gradient: linear-gradient(90deg, rgba(0, 0, 0, 0.05) 0%, rgba(0, 0, 0, 0.4) 70%, rgba(0, 0, 0, 0.65) 100%);
+      --status-ready-bg: #0f1f1a;
+      --status-paused-bg: #2a2108;
+      --status-syncloss-bg: #2a1808;
+      --shadow-elevated: 0 4px 20px rgba(0, 0, 0, 0.5);
+      --ambient-top: transparent;
+      --ambient-bottom: transparent;
+    }
+
+    body[data-theme="aurora-stage"] {
+      --app-bg: #0b0d14;
+      --app-text: #ecf1ff;
+      --app-font: Inter, "Segoe UI", Roboto, system-ui, sans-serif;
+      --lyric-font: "Playfair Display", Georgia, serif;
+      --surface-1: #0f1522;
+      --surface-2: #0f1522;
+      --surface-3: #0f1522;
+      --border: #1f2a3d;
+      --muted: #95a2bd;
+      --accent-ready: #7df4c8;
+      --accent-paused: #ffd983;
+      --accent-loading: #8db5ff;
+      --accent-word: #79a6ff;
+      --accent-syncloss: #ffb366;
+      --overlay-gradient: linear-gradient(90deg, rgba(10, 14, 22, 0.08) 0%, rgba(12, 18, 31, 0.46) 72%, rgba(10, 16, 30, 0.74) 100%);
+      --status-ready-bg: #102326;
+      --status-paused-bg: #2a2510;
+      --status-syncloss-bg: #2a1a0f;
+      --shadow-elevated: 0 12px 38px rgba(34, 62, 119, 0.25);
+      --ambient-top: radial-gradient(ellipse 80% 50% at 50% 0%, rgba(116, 144, 255, 0.18) 0%, transparent 60%);
+      --ambient-bottom: radial-gradient(ellipse 70% 45% at 50% 100%, rgba(112, 248, 206, 0.11) 0%, transparent 58%);
+    }
+    
+    html,
+    body {
+      width: 100%;
+      overflow: hidden;
+    }
+
+    body {
+      font-family: var(--app-font);
+      background: var(--app-bg);
+      color: var(--app-text);
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      height: 100dvh;
+      overflow: hidden;
+      position: relative;
+    }
+
+    body::before,
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    body::before {
+      background: var(--ambient-top);
+    }
+
+    body::after {
+      background: var(--ambient-bottom);
+    }
+    
+    #status-bar {
+      padding: 1rem;
+      padding-right: 1rem;
+      background: var(--surface-1);
+      border-bottom: 1px solid var(--border);
+      transition: color 0.2s ease, background 0.2s ease;
+      position: relative;
+      z-index: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 68px;
+      width: 100%;
+      min-width: 0;
+      flex-shrink: 0;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.55rem;
+      padding: 0.48rem 0.95rem;
+      border-radius: 999px;
+      border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
+      background: color-mix(in srgb, var(--surface-2) 72%, transparent);
+      color: var(--muted);
+      font-size: 0.8rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      box-shadow: 0 0 0 1px color-mix(in srgb, var(--border) 30%, transparent) inset;
+      max-width: min(34rem, calc(100vw - 7.5rem));
+      min-width: 0;
+    }
+
+    .status-icon {
+      font-size: 0.95rem;
+      line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 auto;
+    }
+
+    .status-icon-text {
+      line-height: 1;
+    }
+
+    .status-icon-svg {
+      width: 1rem;
+      height: 1rem;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      vector-effect: non-scaling-stroke;
+    }
+
+    .status-label {
+      white-space: nowrap;
+      line-height: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .status-pill.status-loading-ellipsis .status-label::after {
+      content: ' ...';
+      animation: pulseDots 1s steps(3, end) infinite;
+      display: inline-block;
+    }
+
+    .status-icon-spin {
+      animation: iconSpin 1.5s linear infinite;
+    }
+
+    .status-listening-bars {
+      display: inline-flex;
+      align-items: flex-end;
+      gap: 0.14rem;
+      margin-left: 0.36rem;
+      flex: 0 0 auto;
+    }
+
+    .status-listening-bars span {
+      width: 0.12rem;
+      height: 0.45rem;
+      border-radius: 999px;
+      background: currentColor;
+      opacity: 0.75;
+      animation: statusBarBounce 0.8s ease-in-out infinite;
+    }
+
+    .status-listening-bars span:nth-child(2) {
+      animation-delay: 0.12s;
+    }
+
+    .status-listening-bars span:nth-child(3) {
+      animation-delay: 0.24s;
+    }
+
+    .status-ready-dot {
+      width: 0.5rem;
+      height: 0.5rem;
+      border-radius: 999px;
+      background: var(--accent-ready);
+      box-shadow: 0 0 10px color-mix(in srgb, var(--accent-ready) 65%, transparent);
+      animation: readyPulse 1.4s ease-in-out infinite;
+      flex: 0 0 auto;
+      display: inline-block;
+    }
+    
+    #lyric-display {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      font-family: var(--lyric-font);
+      font-size: 2rem;
+      text-align: center;
+      line-height: 1.5;
+      overflow-y: auto;
+      overflow-x: hidden;
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      min-width: 0;
+      touch-action: none;
+      overscroll-behavior: contain;
+      scrollbar-width: thin;
+      scrollbar-color: color-mix(in srgb, var(--border) 88%, transparent) color-mix(in srgb, var(--surface-3) 88%, transparent);
+    }
+
+    #lyric-display.lyric-display--lyrics-mode {
+      flex-direction: column;
+      align-items: stretch;
+      justify-content: flex-start;
+      padding-top: 0.75rem;
+    }
+
+    body[data-platform="android-wrapper"] #lyric-display {
+      overflow-y: hidden;
+      overscroll-behavior: none;
+    }
+    
+    .state-message {
+      color: var(--muted);
+      font-size: 1.5rem;
+      opacity: 0;
+      animation: fadeIn 0.5s ease-in forwards;
+    }
+
+    .state-hero {
+      text-align: center;
+    }
+
+    .state-hero-title {
+      margin: 0;
+      color: var(--app-text);
+      font-family: var(--lyric-font);
+      font-size: clamp(2.2rem, 7vw, 4.4rem);
+      line-height: 1.05;
+    }
+
+    .state-hero-subtitle {
+      margin-top: 0.6rem;
+      font-size: 1rem;
+      color: var(--muted);
+      letter-spacing: 0.03em;
+    }
+
+    .loading-state {
+      text-align: center;
+    }
+
+    .loading-dots {
+      display: flex;
+      justify-content: center;
+      gap: 0.35rem;
+      margin-bottom: 0.9rem;
+    }
+
+    .loading-dots span {
+      display: block;
+      width: 0.52rem;
+      height: 0.52rem;
+      border-radius: 999px;
+      background: var(--accent-loading);
+      animation: dotBounce 0.85s ease-in-out infinite;
+    }
+
+    .loading-dots span:nth-child(2) {
+      animation-delay: 0.11s;
+    }
+
+    .loading-dots span:nth-child(3) {
+      animation-delay: 0.22s;
+    }
+
+    .loading-text {
+      font-family: var(--lyric-font);
+      font-size: clamp(1.3rem, 4.4vw, 2.2rem);
+      color: color-mix(in srgb, var(--app-text) 84%, transparent);
+    }
+    
+    .lyrics-container {
+      opacity: 1;
+      transition: transform 0.25s ease, opacity 0.25s ease;
+      width: min(56rem, 100%);
+      margin-inline: auto;
+      padding-inline: clamp(0.25rem, 2vw, 1rem);
+      overflow-wrap: anywhere;
+      font-size: var(--lyric-font-scale, 1em);
+    }
+
+    body[data-app-state="SyncLoss"] .lyrics-container {
+      animation: syncLossFade 3s ease-out forwards;
+    }
+
+    @keyframes syncLossFade {
+      0% {
+        opacity: 1;
+      }
+      100% {
+        opacity: 0.2;
+      }
+    }
+
+    .song-meta {
+      text-align: center;
+      margin-bottom: 1.1rem;
+    }
+
+    .song-meta-fixed {
+      position: sticky;
+      top: 0;
+      z-index: 3;
+      width: min(56rem, 100%);
+      left: 0;
+      right: 0;
+      margin-inline: auto;
+      margin-bottom: 0.8rem;
+      padding: 0.2rem 0 0.45rem;
+      text-align: center;
+      background: linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--surface-2) 94%, transparent),
+        color-mix(in srgb, var(--surface-2) 62%, transparent) 70%,
+        transparent
+      );
+    }
+
+    .song-title {
+      margin: 0;
+      color: var(--accent-loading);
+      font-size: 0.95rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+
+    .song-artist {
+      margin-top: 0.3rem;
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+    
+    .lyric-unit {
+      color: var(--muted);
+      display: block;
+      transition: color 0.24s ease, opacity 0.24s ease, transform 0.24s ease;
+      opacity: 0.56;
+      transform: translateY(0) scale(0.99);
+    }
+
+    .lyric-unit.is-near {
+      opacity: 0.76;
+      transform: translateY(0) scale(1);
+    }
+
+    .lyric-unit.is-far {
+      opacity: 0.4;
+      transform: translateY(0) scale(0.985);
+    }
+    
+    .lyric-unit.active {
+      color: var(--app-text);
+      font-weight: bold;
+      opacity: 1;
+      transform: translateY(-2px) scale(1.02);
+    }
+
+    .lyric-line-text {
+      font-weight: inherit;
+    }
+
+    .lyric-unit.active .lyric-line-text {
+      font-weight: 700;
+    }
+
+    .line-word {
+      display: inline-block;
+      transition: color 0.18s ease, font-weight 0.18s ease, opacity 0.18s ease;
+      opacity: 0.92;
+      font-weight: 740;
+      padding: 0 0.04em;
+      border-radius: 0.2em;
+    }
+
+    .line-word.active-word {
+      color: #ffffff;
+      opacity: 1;
+      font-weight: 900;
+      background: color-mix(in srgb, var(--accent-loading) 24%, transparent);
+      box-shadow: 0 0 12px color-mix(in srgb, var(--accent-loading) 36%, transparent);
+      text-shadow: 0 0 6px color-mix(in srgb, #ffffff 45%, transparent);
+    }
+    
+    .lyric-unit.active.word {
+      color: var(--accent-word);
+      text-shadow: 0 0 14px color-mix(in srgb, var(--accent-word) 60%, transparent);
+      transform: translateY(-2px);
+    }
+    
+    .lyric-unit.active.line {
+      color: #fff;
+      font-weight: bold;
+    }
+    
+    .lyric-unit.active.block {
+      color: #fff;
+      font-weight: bold;
+    }
+
+    body[data-lyric-transition="smooth"] .lyric-unit.incoming {
+      font-weight: 600;
+    }
+
+    body[data-lyric-transition="smooth"] .lyric-unit.incoming .lyric-line-text {
+      font-weight: 600;
+    }
+
+    body[data-lyric-transition="smooth"] .line-word.incoming-word {
+      font-weight: 800;
+    }
+
+    .lyric-unit.paragraph {
+      transition: color 0.32s ease, opacity 0.32s ease, transform 0.32s ease;
+      transform: translateY(0);
+    }
+
+    .lyric-unit.paragraph.paragraph-focus {
+      color: color-mix(in srgb, #ffffff 94%, var(--accent-loading) 6%);
+      opacity: 0.96;
+      transform: translateY(0) scale(1);
+    }
+
+    .lyric-unit.paragraph.paragraph-active {
+      font-weight: 700;
+    }
+
+    .lyric-unit.paragraph.paragraph-inactive {
+      font-weight: 400;
+    }
+
+    .lyric-unit.paragraph.paragraph-dim {
+      color: color-mix(in srgb, var(--muted) 70%, #0a0c12 30%);
+    }
+
+    .lyric-unit.paragraph.paragraph-depth-0 {
+      opacity: 0.98;
+    }
+
+    .lyric-unit.paragraph.paragraph-depth-1 {
+      opacity: 0.9;
+    }
+
+    .lyric-unit.paragraph.paragraph-depth-2 {
+      opacity: 0.82;
+    }
+
+    .lyric-unit.paragraph.paragraph-depth-3 {
+      opacity: 0.62;
+      color: color-mix(in srgb, var(--muted) 56%, #090b11 44%);
+    }
+
+    .lyric-unit.paragraph.paragraph-depth-4 {
+      opacity: 0.46;
+      color: color-mix(in srgb, var(--muted) 42%, #07090f 58%);
+    }
+
+    .lyric-unit.paragraph.paragraph-depth-5,
+    .lyric-unit.paragraph.paragraph-depth-6 {
+      opacity: 0.3;
+      color: color-mix(in srgb, var(--muted) 32%, #05070c 68%);
+    }
+
+    /* Task 49: Reduce active lyric brightness during SyncLoss */
+    .lyrics-container.sync-loss .lyric-unit.active {
+      opacity: 0.7;
+    }
+
+    .lyrics-container.sync-loss .lyric-unit.active.word {
+      text-shadow: 0 0 8px color-mix(in srgb, var(--accent-word) 35%, transparent);
+    }
+
+    .lyrics-container.sync-loss .line-word.active-word {
+      opacity: 0.75;
+      box-shadow: 0 0 8px color-mix(in srgb, var(--accent-loading) 20%, transparent);
+      text-shadow: 0 0 4px color-mix(in srgb, #ffffff 25%, transparent);
+    }
+    
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    @keyframes fadeOut {
+      from {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      to {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+    }
+
+    @keyframes pulseDots {
+      0% { opacity: 0.25; }
+      50% { opacity: 1; }
+      100% { opacity: 0.25; }
+    }
+
+    @keyframes dotBounce {
+      0%, 80%, 100% {
+        transform: translateY(0);
+        opacity: 0.55;
+      }
+      40% {
+        transform: translateY(-0.22rem);
+        opacity: 1;
+      }
+    }
+
+    @keyframes statusBarBounce {
+      0%, 80%, 100% {
+        transform: scaleY(0.45);
+        opacity: 0.5;
+      }
+      40% {
+        transform: scaleY(1);
+        opacity: 1;
+      }
+    }
+
+    @keyframes iconSpin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes readyPulse {
+      0%, 100% {
+        opacity: 0.45;
+        box-shadow: 0 0 5px color-mix(in srgb, var(--accent-ready) 45%, transparent);
+      }
+      50% {
+        opacity: 1;
+        box-shadow: 0 0 12px color-mix(in srgb, var(--accent-ready) 75%, transparent);
+      }
+    }
+
+    body[data-app-state="Ready"] #status-bar {
+      background: var(--status-ready-bg);
+    }
+
+    body[data-app-state="Paused"] #status-bar {
+      background: var(--status-paused-bg);
+    }
+
+    body[data-app-state="SyncLoss"] #status-bar {
+      background: var(--status-syncloss-bg);
+    }
+
+    body[data-app-state="Listening"] #status-bar .status-pill,
+    body[data-app-state="SongDetected"] #status-bar .status-pill,
+    body[data-app-state="Syncing"] #status-bar .status-pill {
+      color: var(--accent-loading);
+    }
+
+    body[data-app-state="Ready"] #status-bar .status-pill {
+      color: var(--accent-ready);
+    }
+
+    body[data-app-state="Paused"] #status-bar .status-pill {
+      color: var(--accent-paused);
+    }
+
+    body[data-app-state="SyncLoss"] #status-bar .status-pill {
+      color: var(--accent-syncloss);
+    }
+
+    body[data-theme="aurora-stage"] #status-bar,
+    body[data-theme="aurora-stage"] #controls {
+      background: transparent;
+      border-color: transparent;
+    }
+    
+    #controls {
+      padding: 2rem;
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      background: var(--surface-1);
+      border-top: 1px solid var(--border);
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      min-width: 0;
+      flex-shrink: 0;
+    }
+    
+    button {
+      padding: 1rem 2rem;
+      font-size: 1rem;
+      border: none;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      background: var(--border);
+      color: var(--app-text);
+      transition: background 0.2s, transform 0.1s;
+    }
+
+    .control-icon-svg,
+    .settings-icon-svg {
+      width: 1.15rem;
+      height: 1.15rem;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.95;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      vector-effect: non-scaling-stroke;
+    }
+    
+    button:hover {
+      background: color-mix(in srgb, var(--border) 75%, white 25%);
+    }
+    
+    button:active {
+      background: color-mix(in srgb, var(--border) 60%, white 40%);
+      transform: translateY(1px);
+    }
+
+    body[data-theme="aurora-stage"] #controls button:not(:disabled) {
+      border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+      box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent-loading) 10%, transparent) inset;
+    }
+
+    body[data-theme="aurora-stage"] #controls {
+      align-self: center;
+      width: auto;
+      max-width: calc(100vw - 2rem);
+      margin-bottom: 0.6rem;
+      padding: 0.75rem;
+      gap: 0.75rem;
+      border-radius: 1rem;
+      background: color-mix(in srgb, var(--surface-2) 65%, transparent);
+      border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+      backdrop-filter: blur(6px);
+      flex-wrap: wrap;
+    }
+
+    body[data-theme="aurora-stage"] #controls button {
+      width: 3.5rem;
+      height: 3.5rem;
+      padding: 0;
+      border-radius: 0.85rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0;
+    }
+
+    body[data-theme="aurora-stage"] #start-btn:not(:disabled) {
+      color: #e9f2ff;
+      background: color-mix(in srgb, #2ca9ff 88%, #178ce8 12%);
+      border-color: color-mix(in srgb, #3db4ff 50%, transparent);
+      box-shadow: 0 0 20px color-mix(in srgb, #2ca9ff 25%, transparent);
+    }
+
+    body[data-theme="aurora-stage"] #pause-btn:not(:disabled) {
+      color: #d5deef;
+      background: color-mix(in srgb, #162139 86%, #0c1527 14%);
+      border-color: color-mix(in srgb, #2b3a56 65%, transparent);
+    }
+
+    body[data-theme="aurora-stage"] #stop-btn:not(:disabled) {
+      color: #ff244d;
+      background: color-mix(in srgb, #501322 78%, #2f0a16 22%);
+      border-color: color-mix(in srgb, #8c1d37 62%, transparent);
+    }
+    
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* Hidden controls must stay hidden even when theme styles force button display */
+    #controls button[hidden] {
+      display: none !important;
+    }
+    
+    #settings-btn {
+      position: fixed;
+      top: 0.35rem;
+      right: 1rem;
+      width: 2.8rem;
+      height: 2.8rem;
+      padding: 0;
+      font-size: 1.35rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2;
+    }
+
+    #help-btn {
+      position: fixed;
+      top: 0.35rem;
+      left: 1rem;
+      width: 2.8rem;
+      height: 2.8rem;
+      padding: 0;
+      font-size: 1.35rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2;
+    }
+
+    #debug-log-btn {
+      position: fixed;
+      left: 1rem;
+      bottom: 1rem;
+      width: 2.8rem;
+      height: 2.8rem;
+      padding: 0;
+      font-size: 1.35rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 3;
+    }
+
+    body[data-theme="aurora-stage"] #settings-btn {
+      width: 2.5rem;
+      height: 2.5rem;
+      border-radius: 0.75rem;
+      background: color-mix(in srgb, var(--surface-2) 60%, transparent);
+      border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+      color: #aeb9cd;
+      backdrop-filter: blur(6px);
+      box-shadow: 0 0 0 1px color-mix(in srgb, #293653 24%, transparent) inset;
+    }
+
+    body[data-theme="aurora-stage"] #help-btn {
+      width: 2.5rem;
+      height: 2.5rem;
+      border-radius: 0.75rem;
+      background: color-mix(in srgb, var(--surface-2) 60%, transparent);
+      border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+      color: #aeb9cd;
+      backdrop-filter: blur(6px);
+      box-shadow: 0 0 0 1px color-mix(in srgb, #293653 24%, transparent) inset;
+    }
+
+    body[data-theme="aurora-stage"] #help-btn:hover {
+      background: color-mix(in srgb, var(--surface-2) 78%, transparent);
+      color: var(--app-text);
+      transform: translateY(0);
+    }
+
+    body[data-theme="aurora-stage"] #settings-btn:hover {
+      background: color-mix(in srgb, var(--surface-2) 78%, transparent);
+      color: var(--app-text);
+      transform: translateY(0);
+    }
+
+    body[data-theme="aurora-stage"] #debug-log-btn {
+      width: 2.5rem;
+      height: 2.5rem;
+      border-radius: 0.75rem;
+      background: color-mix(in srgb, var(--surface-2) 60%, transparent);
+      border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+      color: #aeb9cd;
+      backdrop-filter: blur(6px);
+      box-shadow: 0 0 0 1px color-mix(in srgb, #293653 24%, transparent) inset;
+    }
+
+    body[data-theme="aurora-stage"] #debug-log-btn:hover {
+      background: color-mix(in srgb, var(--surface-2) 78%, transparent);
+      color: var(--app-text);
+      transform: translateY(0);
+    }
+
+    body[data-theme="aurora-stage"] .settings-icon-svg {
+      width: 1.25rem;
+      height: 1.25rem;
+      stroke-width: 2;
+    }
+
+    body[data-theme="aurora-stage"] .control-icon-svg {
+      width: 1.55rem;
+      height: 1.55rem;
+      stroke-width: 2.15;
+    }
+
+    #debug-log-panel {
+      position: fixed;
+      left: 1rem;
+      bottom: 4.35rem;
+      width: min(36rem, calc(100vw - 2rem));
+      max-height: min(60vh, 30rem);
+      border-radius: 0.8rem;
+      border: 1px solid var(--border);
+      background: color-mix(in srgb, var(--surface-2) 90%, transparent);
+      color: color-mix(in srgb, var(--app-text) 94%, transparent);
+      box-shadow: var(--shadow-elevated);
+      z-index: 14;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      backdrop-filter: blur(6px);
+    }
+
+    #debug-log-panel[hidden] {
+      display: none;
+    }
+
+    #debug-log-panel header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 0.5rem;
+      padding: 0.7rem 0.8rem;
+      border-bottom: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+      font-size: 0.82rem;
+    }
+
+    #debug-log-panel header strong {
+      letter-spacing: 0.02em;
+    }
+
+    #debug-log-panel .debug-toolbar {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      min-width: 0;
+      flex: 1;
+      align-items: flex-end;
+    }
+
+    #debug-log-panel .debug-actions {
+      display: flex;
+      gap: 0.4rem;
+      align-items: center;
+      justify-content: flex-end;
+      width: 100%;
+      min-width: 0;
+      overflow-x: auto;
+      padding-bottom: 0.1rem;
+      scrollbar-width: thin;
+      touch-action: pan-x;
+    }
+
+    #debug-log-panel .debug-actions button {
+      flex: 0 0 auto;
+      padding: 0.32rem 0.55rem;
+      font-size: 0.74rem;
+      border-radius: 0.42rem;
+    }
+
+    #debug-log-panel .debug-toggle-btn {
+      border-radius: 999px;
+      border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+      background: color-mix(in srgb, var(--surface-3) 86%, transparent);
+      color: color-mix(in srgb, var(--muted) 92%, transparent);
+      padding: 0.28rem 0.64rem;
+      font-size: 0.72rem;
+      letter-spacing: 0.01em;
+    }
+
+    #debug-log-panel .debug-toggle-btn.is-active {
+      background: color-mix(in srgb, #1f7d44 58%, var(--surface-2) 42%);
+      border-color: color-mix(in srgb, #5ade8a 55%, var(--border) 45%);
+      color: #eafff2;
+      box-shadow: 0 0 0 1px color-mix(in srgb, #49bc74 35%, transparent) inset;
+    }
+
+    #debug-log-panel .debug-toggle-btn[data-plugin-type="songsense"].is-active {
+      background: color-mix(in srgb, #0f7c78 58%, var(--surface-2) 42%);
+      border-color: color-mix(in srgb, #49ded7 52%, var(--border) 48%);
+      color: #e8fffe;
+    }
+
+    #debug-log-panel .debug-toggle-btn[data-plugin-type="syncengine"].is-active {
+      background: color-mix(in srgb, #1f57b6 58%, var(--surface-2) 42%);
+      border-color: color-mix(in srgb, #7db1ff 52%, var(--border) 48%);
+      color: #eef5ff;
+    }
+
+    #debug-log-panel .debug-toggle-btn[data-plugin-type="lyricflow"].is-active {
+      background: color-mix(in srgb, #8d5b13 58%, var(--surface-2) 42%);
+      border-color: color-mix(in srgb, #ffcb76 52%, var(--border) 48%);
+      color: #fff8ea;
+    }
+
+    #debug-log-output {
+      margin: 0;
+      padding: 0.75rem 0.8rem;
+      overflow: auto;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: 0.72rem;
+      line-height: 1.35;
+      white-space: pre-wrap;
+      word-break: break-word;
+      color: color-mix(in srgb, var(--app-text) 91%, transparent);
+      flex: 1;
+    }
+
+    #debug-log-output .debug-log-line {
+      display: block;
+    }
+
+    #debug-log-output .debug-log-line[data-plugin-type="songsense"] {
+      background: rgba(18, 124, 120, 0.16);
+      color: #dffffd;
+    }
+
+    #debug-log-output .debug-log-line[data-plugin-type="syncengine"] {
+      background: rgba(31, 87, 182, 0.16);
+      color: #e9f2ff;
+    }
+
+    #debug-log-output .debug-log-line[data-plugin-type="lyricflow"] {
+      background: rgba(141, 91, 19, 0.16);
+      color: #fff5df;
+    }
+
+    #help-popover {
+      position: fixed;
+      top: 3.45rem;
+      left: 1rem;
+      width: min(32rem, calc(100vw - 2rem));
+      padding: 0.9rem 1rem;
+      border-radius: 0.8rem;
+      border: 1px solid var(--border);
+      background: color-mix(in srgb, var(--surface-2) 90%, transparent);
+      color: color-mix(in srgb, var(--app-text) 90%, transparent);
+      box-shadow: var(--shadow-elevated);
+      z-index: 12;
+      font-size: 0.9rem;
+      line-height: 1.45;
+      backdrop-filter: blur(6px);
+    }
+
+    #help-popover[hidden] {
+      display: none;
+    }
+
+    #lyric-display::-webkit-scrollbar {
+      width: 10px;
+    }
+
+    #lyric-display::-webkit-scrollbar-track {
+      background: color-mix(in srgb, var(--surface-3) 88%, transparent);
+      border-radius: 999px;
+    }
+
+    #lyric-display::-webkit-scrollbar-thumb {
+      background: color-mix(in srgb, var(--border) 90%, transparent);
+      border-radius: 999px;
+      border: 2px solid color-mix(in srgb, var(--surface-3) 88%, transparent);
+    }
+
+    #lyric-display::-webkit-scrollbar-thumb:hover {
+      background: color-mix(in srgb, var(--app-text) 35%, var(--border) 65%);
+    }
+
+    #help-popover h3 {
+      margin: 0 0 0.55rem 0;
+      font-size: 0.95rem;
+      letter-spacing: 0.03em;
+    }
+
+    #help-popover ul {
+      margin: 0;
+      padding-left: 1.1rem;
+      display: grid;
+      gap: 0.3rem;
+    }
+
+    /* Plugin Manager Modal */
+    #plugin-manager-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1000;
+      align-items: flex-start;
+      justify-content: flex-end;
+      padding-top: calc(68px + 1rem);
+      padding-right: 1rem;
+      padding-bottom: calc(100px + 1rem);
+      padding-left: 1rem;
+      pointer-events: none;
+    }
+    
+    .modal-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.3);
+      pointer-events: auto;
+    }
+    
+    .modal-content {
+      position: relative;
+      background: var(--surface-2);
+      border-radius: 1rem;
+      border: 1px solid var(--border);
+      width: min(420px, calc(100vw - 2rem));
+      max-width: 420px;
+      max-height: calc(100vh - 68px - 100px - 2rem);
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      box-shadow: var(--shadow-elevated);
+      pointer-events: auto;
+      backdrop-filter: blur(8px);
+    }
+
+    @media (max-width: 900px) {
+      .modal-content {
+        width: min(420px, calc(100vw - 2rem));
+        max-width: calc(100vw - 2rem);
+      }
+    }
+    
+    .modal-header {
+      padding: 1.5rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .modal-header h2 {
+      margin: 0;
+      font-size: 1.5rem;
+    }
+    
+    .close-btn {
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 2rem;
+      cursor: pointer;
+      padding: 0;
+      width: 2rem;
+      height: 2rem;
+      line-height: 1;
+    }
+    
+    .close-btn:hover {
+      color: var(--app-text);
+    }
+    
+    .modal-body {
+      padding: 1.5rem;
+      overflow-y: auto;
+      overflow-x: hidden;
+      flex: 1;
+      scrollbar-width: thin;
+      scrollbar-color: color-mix(in srgb, var(--border) 88%, transparent) color-mix(in srgb, var(--surface-3) 88%, transparent);
+    }
+
+    .modal-body::-webkit-scrollbar {
+      width: 10px;
+    }
+
+    .modal-body::-webkit-scrollbar-track {
+      background: color-mix(in srgb, var(--surface-3) 88%, transparent);
+      border-radius: 999px;
+    }
+
+    .modal-body::-webkit-scrollbar-thumb {
+      background: color-mix(in srgb, var(--border) 90%, transparent);
+      border-radius: 999px;
+      border: 2px solid color-mix(in srgb, var(--surface-3) 88%, transparent);
+    }
+
+    .modal-body::-webkit-scrollbar-thumb:hover {
+      background: color-mix(in srgb, var(--app-text) 35%, var(--border) 65%);
+    }
+
+    body[data-theme="aurora-stage"] .modal-body {
+      scrollbar-color: color-mix(in srgb, #36507a 80%, transparent) color-mix(in srgb, #0f1a2f 82%, transparent);
+    }
+
+    body[data-theme="aurora-stage"] #lyric-display {
+      scrollbar-color: color-mix(in srgb, #36507a 80%, transparent) color-mix(in srgb, #0f1a2f 82%, transparent);
+    }
+
+    body[data-theme="aurora-stage"] #lyric-display::-webkit-scrollbar-track {
+      background: color-mix(in srgb, #0f1a2f 82%, transparent);
+    }
+
+    body[data-theme="aurora-stage"] #lyric-display::-webkit-scrollbar-thumb {
+      background: color-mix(in srgb, #36507a 80%, transparent);
+      border-color: color-mix(in srgb, #0f1a2f 82%, transparent);
+    }
+
+    body[data-theme="aurora-stage"] #lyric-display::-webkit-scrollbar-thumb:hover {
+      background: color-mix(in srgb, #4f6ea1 85%, transparent);
+    }
+
+    body[data-theme="aurora-stage"] .modal-body::-webkit-scrollbar-track {
+      background: color-mix(in srgb, #0f1a2f 82%, transparent);
+    }
+
+    body[data-theme="aurora-stage"] .modal-body::-webkit-scrollbar-thumb {
+      background: color-mix(in srgb, #36507a 80%, transparent);
+      border-color: color-mix(in srgb, #0f1a2f 82%, transparent);
+    }
+
+    body[data-theme="aurora-stage"] .modal-body::-webkit-scrollbar-thumb:hover {
+      background: color-mix(in srgb, #4f6ea1 85%, transparent);
+    }
+    
+    .plugin-install-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .plugin-install-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.45rem;
+    }
+    
+    #allowlist-dropdown {
+      width: 100%;
+      padding: 0.5rem;
+      background: var(--surface-3);
+      color: var(--app-text);
+      border: 1px solid var(--border);
+      border-radius: 0.25rem;
+      font-size: 0.9rem;
+    }
+    
+    #install-allowlist-btn,
+    #import-local-btn {
+      padding: 0.45rem 0.85rem;
+      font-size: 0.9rem;
+    }
+    
+    .developer-mode {
+      margin-bottom: 1.5rem;
+      padding: 0.75rem;
+      background: var(--surface-3);
+      border: 1px solid var(--border);
+      border-radius: 0.25rem;
+    }
+    
+    .developer-mode label {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      cursor: pointer;
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    .theme-mode {
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 0.75rem;
+      padding: 0.75rem;
+      background: var(--surface-3);
+      border: 1px solid var(--border);
+      border-radius: 0.25rem;
+    }
+
+    .theme-mode label {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+      flex: 1 1 220px;
+      min-width: 0;
+      font-size: 0.9rem;
+      line-height: 1.35;
+      color: var(--muted);
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
+
+    .theme-mode select {
+      flex: 1 1 220px;
+      min-width: 0;
+      padding: 0.45rem 0.55rem;
+      background: var(--surface-2);
+      color: var(--app-text);
+      border: 1px solid var(--border);
+      border-radius: 0.25rem;
+      font-size: 0.9rem;
+    }
+
+    .theme-mode input[type="checkbox"] {
+      flex: 0 0 auto;
+      margin-top: 0.1rem;
+    }
+    
+    .developer-mode input[type="checkbox"] {
+      cursor: pointer;
+    }
+    
+    .plugin-group {
+      margin-bottom: 2rem;
+    }
+    
+    .plugin-group h3 {
+      font-size: 1.1rem;
+      margin-bottom: 1rem;
+      color: var(--muted);
+    }
+    
+    .no-plugins {
+      color: color-mix(in srgb, var(--muted) 70%, transparent);
+      font-style: italic;
+      margin: 0.5rem 0;
+    }
+    
+    .plugin-item {
+      background: var(--surface-3);
+      border: 1px solid var(--border);
+      border-radius: 0.25rem;
+      padding: 0.75rem 0.75rem;
+      margin-bottom: 0.5rem;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.5rem;
+      min-width: 0;
+    }
+
+    .plugin-item--lyric-settings {
+      align-items: flex-start;
+    }
+
+    .plugin-info {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
+    .plugin-settings-inline {
+      flex: 1 1 100%;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 0.65rem;
+      min-width: 0;
+    }
+
+    .plugin-settings-inline label {
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+
+    .plugin-settings-inline select {
+      width: 100%;
+      padding: 0.45rem 0.5rem;
+      border-radius: 0.35rem;
+      border: 1px solid var(--border);
+      background: color-mix(in srgb, var(--surface-2) 92%, transparent);
+      color: var(--app-text);
+    }
+    
+    .plugin-radio {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+      cursor: pointer;
+    }
+    
+    .plugin-radio input[type="radio"] {
+      cursor: pointer;
+    }
+    
+    .plugin-name {
+      font-weight: 500;
+      overflow-wrap: anywhere;
+    }
+    
+    .plugin-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.375rem;
+      margin-top: 0.35rem;
+      font-size: 0.85rem;
+    }
+    
+    .plugin-status {
+      padding: 0.2rem 0.5rem;
+      border-radius: 0.25rem;
+      font-size: 0.7rem;
+      white-space: nowrap;
+    }
+    
+    .plugin-status.installed {
+      background: #1a4d1a;
+      color: #6f6;
+    }
+    
+    .plugin-status.unavailable {
+      background: #4d1a1a;
+      color: #f66;
+    }
+    
+    /* Task 43.1: Keep legacy class names for backward compatibility */
+    .plugin-status.enabled {
+      background: #1a4d1a;
+      color: #6f6;
+    }
+    
+    .plugin-status.disabled {
+      background: #4d1a1a;
+      color: #f66;
+    }
+    
+    .plugin-active {
+      background: #1a3d4d;
+      color: #6cf;
+      padding: 0.2rem 0.5rem;
+      border-radius: 0.25rem;
+      font-size: 0.7rem;
+      white-space: nowrap;
+    }
+
+    .plugin-source {
+      background: var(--border);
+      color: color-mix(in srgb, var(--app-text) 80%, transparent);
+      padding: 0.2rem 0.5rem;
+      border-radius: 0.25rem;
+      font-size: 0.7rem;
+      white-space: nowrap;
+    }
+    
+    /* Task 43.2 + 44.2: Compact action buttons, prevent overflow on narrow widths */
+    .plugin-actions {
+      display: flex;
+      gap: 0.375rem;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: flex-end;
+      flex-shrink: 0;
+      min-width: 0;
+    }
+
+    @media (max-width: 560px) {
+      .plugin-actions {
+        width: 100%;
+        justify-content: flex-start;
+      }
+    }
+
+    .toggle-btn,
+    .settings-btn,
+    .remove-btn {
+      padding: 0.4rem 0.75rem;
+      font-size: 0.84rem;
+      white-space: nowrap;
+    }
+    
+    .remove-btn {
+      background: color-mix(in srgb, #9f3737 55%, var(--surface-2) 45%);
+    }
+    
+    .remove-btn:hover {
+      background: color-mix(in srgb, #9f3737 75%, var(--surface-2) 25%);
+    }
+  </style>
+  <script type="module" crossorigin src="/assets/main-Cd8n6EDL.js"></script>
+</head>
+<body>
+  <button id="help-btn" title="Help" aria-label="Help" aria-expanded="false">ⓘ</button>
+  <button id="debug-log-btn" title="Status-Bar Debug Log" aria-label="Status-Bar Debug Log" hidden>🐞</button>
+  <div id="help-popover" hidden role="dialog" aria-label="How Axolync Works">
+    <h3>How Axolync works</h3>
+    <ul>
+      <li>Axolync listens to real-world audio and syncs displayed lyrics. It does not play music in normal mode.</li>
+      <li>Start begins listening + sync flow. Stop resets everything and also stops demo audio playback.</li>
+      <li>Pause stops sync updates and re-adjustments. By default, lyrics keep flowing while paused (can be changed in Settings).</li>
+      <li>Resume runs a short re-sync phase and continues timeline display.</li>
+      <li>Drag in the lyrics area to change context lines: drag down shows fewer lines (zoom in), drag up shows more lines (zoom out), double-click resets to 5 lines.</li>
+      <li>Demo mode is a special case where sample audio can play for presentation.</li>
+    </ul>
+  </div>
+  <div id="debug-log-panel" hidden aria-live="polite">
+    <header>
+      <strong>Logs</strong>
+      <div class="debug-toolbar">
+        <div class="debug-actions">
+          <button id="debug-log-toggle-notifications" class="debug-toggle-btn is-active" type="button" aria-pressed="true" hidden>Notifications</button>
+          <button id="debug-log-refresh" type="button">Refresh</button>
+          <button id="debug-log-clear" type="button">Clear</button>
+          <button id="debug-log-download" type="button">Download</button>
+          <button id="debug-log-close" type="button">Close</button>
+        </div>
+        <div class="debug-actions">
+          <button id="debug-log-filter-songsense" class="debug-toggle-btn is-active" data-plugin-type="songsense" type="button" aria-pressed="true">SongSense</button>
+          <button id="debug-log-filter-syncengine" class="debug-toggle-btn is-active" data-plugin-type="syncengine" type="button" aria-pressed="true">SyncEngine</button>
+          <button id="debug-log-filter-lyricflow" class="debug-toggle-btn is-active" data-plugin-type="lyricflow" type="button" aria-pressed="true">LyricFlow</button>
+        </div>
+      </div>
+    </header>
+    <pre id="debug-log-output">No debug rows yet.</pre>
+  </div>
+  <button id="settings-btn" title="Settings">⚙️</button>
+  
+  <div id="status-bar">
+    Idle
+  </div>
+  
+  <div id="lyric-display">
+    Welcome to Axolync Browser
+  </div>
+  
+  <div id="controls">
+    <button id="start-btn" title="Start Listening">▶️</button>
+    <button id="stop-btn" title="Stop" disabled>⏹️</button>
+    <button id="pause-btn" title="Pause" disabled>⏸️</button>
+  </div>
+  
+</body>
+</html>

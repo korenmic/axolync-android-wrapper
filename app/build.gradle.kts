@@ -248,7 +248,25 @@ tasks.register("copyAxolyncBrowserAssets") {
             logger.lifecycle("No preinstalled plugin manifest found in copied browser assets (${preinstalledManifest.absolutePath})")
         }
 
-        fileTree("${targetDir.absolutePath}/assets").matching {
+        val copiedAssetsDir = file("${targetDir.absolutePath}/assets")
+        val wrappedWorkersDir = file("${targetDir.absolutePath}/workers")
+        wrappedWorkersDir.mkdirs()
+
+        val packagedBridgeWorkers = mapOf(
+            "lyricflowBridgeWorker" to "lyricflowBridgeWorker.js",
+            "syncengineBridgeWorker" to "syncengineBridgeWorker.js"
+        )
+        for ((workerStem, outputName) in packagedBridgeWorkers) {
+            val candidate = fileTree(copiedAssetsDir).matching {
+                include("${workerStem}-*.ts")
+            }.files.singleOrNull()
+                ?: throw GradleException(
+                    "Expected packaged bridge worker asset for ${workerStem} in ${copiedAssetsDir.absolutePath}"
+                )
+            candidate.copyTo(file("${wrappedWorkersDir.absolutePath}/${outputName}"), overwrite = true)
+        }
+
+        fileTree(copiedAssetsDir).matching {
             include("lyricflowBridgeWorker-*.ts")
             include("syncengineBridgeWorker-*.ts")
         }.files.forEach { staleWorker ->

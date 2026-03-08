@@ -1,0 +1,23 @@
+{
+  "id": "demo-syncengine",
+  "name": "Demo SyncEngine",
+  "version": "1.0.0-demo",
+  "type": "SyncEngine",
+  "main": "demo-syncengine.js",
+  "description": "Deterministic demo SyncEngine plugin for browser-local flows.",
+  "settings": {
+    "adapters": [
+      {
+        "id": "demo-deterministic-sync",
+        "label": "Deterministic Demo Sync",
+        "implemented": true,
+        "defaultEnabled": true,
+        "runtimeStatus": "stable",
+        "notes": "Timeline-aligned deterministic sync for demo mode."
+      }
+    ],
+    "defaultEnabledAdapters": [
+      "demo-deterministic-sync"
+    ]
+  }
+}
