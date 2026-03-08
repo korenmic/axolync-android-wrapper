@@ -407,6 +407,13 @@ The implementation uses Kotlin for all native Android components and integrates 
   - [x] 26.3 Add regression guards for manifest and native bridge wiring
     - Add static tests for service export/permission wiring and intent fallback coverage markers.
 
+- [x] 27. Support native debug-log archive saves from the wrapped WebView
+  - [x] 27.1 Add a NativeBridge save hook for browser-generated debug archives
+    - Accept a filename plus archive bytes/base64 from the web app and persist the ZIP into a user-visible downloads location.
+    - Return structured success/failure information so the web app can log native save results.
+  - [x] 27.2 Add regression coverage
+    - Add focused unit/static coverage for the new native bridge method and its save-path contract.
+
 ## Notes
 
 - Tasks labeled (Optional) may be skipped only for MVP builds; mandatory tasks remain required for production readiness
