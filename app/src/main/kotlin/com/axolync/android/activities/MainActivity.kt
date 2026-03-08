@@ -14,6 +14,7 @@ import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import com.axolync.android.BuildConfig
@@ -51,6 +52,9 @@ class MainActivity : AppCompatActivity() {
         private const val TAG = "MainActivity"
         private const val PERMISSION_REQUEST_CODE = 1001
         private const val SERVER_READY_TIMEOUT_MS = 5000L
+        private const val RUNTIME_MODE_QUERY_PARAM = "axolync_runtime"
+        private const val CLIENT_PLATFORM_HEADER = "X-Axolync-Client-Platform"
+        private const val ANDROID_RUNTIME_MODE = "android-wrapper"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -64,6 +68,7 @@ class MainActivity : AppCompatActivity() {
         
         // Configure WebView
         configureWebView()
+        registerBackNavigationHandler()
         
         // Check server state and handle appropriately
         val serverManager = ServerManager.getInstance(this)
@@ -132,6 +137,36 @@ class MainActivity : AppCompatActivity() {
             audioCaptureService.stopCapture()
         }
         webView.destroy()
+    }
+
+    private fun registerBackNavigationHandler() {
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                handleWrappedRuntimeBackNavigation()
+            }
+        })
+    }
+
+    private fun handleWrappedRuntimeBackNavigation() {
+        if (!hasLoadedWebApp) {
+            finish()
+            return
+        }
+        val js = """
+            (function () {
+              try {
+                return Boolean(window.__axolyncHandleBackNavigation && window.__axolyncHandleBackNavigation());
+              } catch (_error) {
+                return false;
+              }
+            })();
+        """.trimIndent()
+        webView.evaluateJavascript(js) { rawResult ->
+            val handled = rawResult == "true"
+            if (!handled) {
+                finish()
+            }
+        }
     }
 
     /**
@@ -375,13 +410,16 @@ class MainActivity : AppCompatActivity() {
             return
         }
         
-        val url = if (BuildConfig.DEMO_MODE) {
-            "$baseUrl/index.html?mode=demo-android"
-        } else {
-            "$baseUrl/index.html"
+        val urlBuilder = Uri.parse(baseUrl).buildUpon()
+            .appendPath("index.html")
+            .appendQueryParameter(RUNTIME_MODE_QUERY_PARAM, ANDROID_RUNTIME_MODE)
+        if (BuildConfig.DEMO_MODE) {
+            urlBuilder.appendQueryParameter("mode", "demo-android")
         }
+        val url = urlBuilder.build().toString()
+        val requestHeaders = mapOf(CLIENT_PLATFORM_HEADER to ANDROID_RUNTIME_MODE)
         Log.i(TAG, "Loading web app from $url (canonical localhost URL, demoMode=${BuildConfig.DEMO_MODE})")
-        webView.loadUrl(url)
+        webView.loadUrl(url, requestHeaders)
         hasLoadedWebApp = true
     }
 

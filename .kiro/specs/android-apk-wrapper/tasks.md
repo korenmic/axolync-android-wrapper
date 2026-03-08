@@ -414,6 +414,23 @@ The implementation uses Kotlin for all native Android components and integrates 
   - [x] 27.2 Add regression coverage
     - Add focused unit/static coverage for the new native bridge method and its save-path contract.
 
+- [x] 28. Make Android back navigation respect in-app overlay hierarchy
+  - [x] 28.1 Route system Back to the active web-app overlay instead of exiting immediately
+    - If plugin settings are open, Back should return to global settings.
+    - If global settings are open, Back should close settings.
+    - Exit the app only when the primary lyric view is the sole active surface.
+  - [x] 28.2 Add regression coverage
+    - Add focused native/browser bridge coverage that proves Back dispatches overlay-close behavior before allowing app exit.
+
+- [ ] 29. Restore wrapped-runtime reliability for debug archive saves and bridge workers
+  - [ ] 29.1 Fix Android debug archive downloads so the browser `Download` button produces a saved file
+    - Keep the save path user-visible and return structured success/failure data to the web app.
+  - [ ] 29.2 Serve packaged bridge-worker assets with a JavaScript MIME type
+    - Prevent Android WebView worker bootstrap crashes caused by packaged bridge-worker assets using the `.ts` extension.
+    - Add a regression guard for the packaged worker MIME resolution path.
+  - [ ] 29.3 Add regression coverage
+    - Cover native debug-archive save behavior and worker-asset MIME resolution for packaged browser assets.
+
 ## Notes
 
 - Tasks labeled (Optional) may be skipped only for MVP builds; mandatory tasks remain required for production readiness
