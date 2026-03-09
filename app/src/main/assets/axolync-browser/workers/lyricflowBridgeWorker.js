@@ -163,9 +163,6 @@ async function fetchDirectLrcLibLyrics(songId, fetchImpl = fetch) {
     return payload;
 }
 
-"use strict";
-
-const directLrcLibFallback_js_1 = require("./directLrcLibFallback.js");
 function isErrorEnvelope(value) {
     return Boolean(value
         && typeof value === 'object'
@@ -243,7 +240,7 @@ self.onmessage = async (event) => {
                 return;
             }
             if (msg.type === 'process') {
-                const result = await (0, directLrcLibFallback_js_1.fetchDirectLrcLibLyrics)(String(msg.songId ?? ''));
+                const result = await fetchDirectLrcLibLyrics(String(msg.songId ?? ''));
                 self.postMessage({ type: 'result', requestId, sessionId, result });
                 return;
             }

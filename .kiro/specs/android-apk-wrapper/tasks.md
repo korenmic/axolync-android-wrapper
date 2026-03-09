@@ -497,6 +497,14 @@ The implementation uses Kotlin for all native Android components and integrates 
   - [x] 38.3 Add regression coverage
     - Prove the checked-in wrapped LyricFlow worker no longer contains the helper import and still contains the inlined helper implementation.
 
+- [x] 39. Keep wrapped LyricFlow worker assets free of CommonJS helper residue
+  - [x] 39.1 Reproduce `require is not defined` crashes in checked-in wrapped assets
+    - Cover the case where the checked-in packaged LyricFlow worker has already lost the module import but still contains a transpiler-emitted `require("./directLrcLibFallback.js")`.
+  - [x] 39.2 Refresh wrapped assets to the plain-script worker packaging contract
+    - Keep the checked-in wrapped browser asset tree aligned with packaged classic workers that contain no `require(...)` helper residue.
+  - [x] 39.3 Add regression coverage
+    - Prove the checked-in wrapped LyricFlow worker contains neither the helper import nor the CommonJS `require(...)` helper call.
+
 ## Notes
 
 - Tasks labeled (Optional) may be skipped only for MVP builds; mandatory tasks remain required for production readiness
