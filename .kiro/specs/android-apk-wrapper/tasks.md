@@ -452,6 +452,14 @@ The implementation uses Kotlin for all native Android components and integrates 
   - [x] 32.3 Add/keep regression coverage
     - Keep the wrapped browser asset tree guard green for executable bridge worker entrypoints after local asset sync.
 
+- [x] 33. Restore JavaScript confirm/alert handling in the wrapped WebView
+  - [x] 33.1 Reproduce that Android wrapped runtime does not surface plugin-removal confirmation dialogs
+    - Add a focused guard proving MainActivity configures the WebView host to handle browser `alert()` / `confirm()` dialogs needed by plugin removal flows.
+  - [x] 33.2 Add wrapped-runtime JavaScript dialog handling
+    - Route browser JavaScript confirm/alert dialogs through native Android dialogs so plugin removal and similar settings actions work on Android instead of silently doing nothing.
+  - [x] 33.3 Add/keep regression coverage
+    - Keep a native/static regression proving the wrapped WebView retains JavaScript dialog support.
+
 ## Notes
 
 - Tasks labeled (Optional) may be skipped only for MVP builds; mandatory tasks remain required for production readiness

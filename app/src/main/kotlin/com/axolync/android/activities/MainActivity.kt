@@ -11,10 +11,13 @@ import android.view.MotionEvent
 import android.view.View
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
+import android.webkit.JsResult
 import android.webkit.WebSettings
+import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.OnBackPressedCallback
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import com.axolync.android.BuildConfig
@@ -282,6 +285,49 @@ class MainActivity : AppCompatActivity() {
 
         // Register NativeBridge as JavaScript interface
         webView.addJavascriptInterface(nativeBridge, "AndroidBridge")
+
+        webView.webChromeClient = object : WebChromeClient() {
+            override fun onJsAlert(
+                view: WebView?,
+                url: String?,
+                message: String?,
+                result: JsResult?
+            ): Boolean {
+                AlertDialog.Builder(this@MainActivity)
+                    .setMessage(message ?: "")
+                    .setCancelable(false)
+                    .setPositiveButton(android.R.string.ok) { _, _ ->
+                        result?.confirm()
+                    }
+                    .setOnCancelListener {
+                        result?.cancel()
+                    }
+                    .show()
+                return true
+            }
+
+            override fun onJsConfirm(
+                view: WebView?,
+                url: String?,
+                message: String?,
+                result: JsResult?
+            ): Boolean {
+                AlertDialog.Builder(this@MainActivity)
+                    .setMessage(message ?: "")
+                    .setCancelable(true)
+                    .setPositiveButton(android.R.string.ok) { _, _ ->
+                        result?.confirm()
+                    }
+                    .setNegativeButton(android.R.string.cancel) { _, _ ->
+                        result?.cancel()
+                    }
+                    .setOnCancelListener {
+                        result?.cancel()
+                    }
+                    .show()
+                return true
+            }
+        }
 
         // Set up WebViewClient with strict origin validation
         webView.webViewClient = object : WebViewClient() {
