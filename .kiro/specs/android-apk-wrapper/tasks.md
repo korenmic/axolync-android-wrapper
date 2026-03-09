@@ -514,6 +514,13 @@ The implementation uses Kotlin for all native Android components and integrates 
   - [x] 40.3 Add regression coverage
     - Prove the wrapped local server contains the LyricFlow fallback bridge path and LRCLIB request handling markers needed by the packaged runtime.
 
+
+- [x] 41. Refresh checked-in wrapped browser assets after the local-server LyricFlow fallback change
+  - [x] 41.1 Re-sync `app/src/main/assets/axolync-browser/` from the current browser build output
+    - Keep the checked-in wrapped browser asset tree aligned with the latest browser worker/runtime and preinstalled-plugin outputs after the local-server LyricFlow fallback change.
+  - [x] 41.2 Re-run the packaged-browser parity guards
+    - Confirm the checked-in wrapped asset tree and preinstalled plugin assets stay in sync with the current browser outputs.
+
 ## Notes
 
 - Tasks labeled (Optional) may be skipped only for MVP builds; mandatory tasks remain required for production readiness

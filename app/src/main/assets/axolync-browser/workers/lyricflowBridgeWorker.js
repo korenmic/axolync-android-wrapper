@@ -229,7 +229,7 @@ self.onmessage = async (event) => {
         if (!baseUrl && runtimeMode !== 'android-wrapper') {
             throw new Error('LyricFlow bridge worker missing baseUrl');
         }
-        if (runtimeMode === 'android-wrapper') {
+        if (runtimeMode === 'android-wrapper' && !baseUrl) {
             if (msg.type === 'init' || msg.type === 'dispose') {
                 self.postMessage({
                     type: 'result',
