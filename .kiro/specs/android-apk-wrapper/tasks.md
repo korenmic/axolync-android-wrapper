@@ -460,6 +460,12 @@ The implementation uses Kotlin for all native Android components and integrates 
   - [x] 33.3 Add/keep regression coverage
     - Keep a native/static regression proving the wrapped WebView retains JavaScript dialog support.
 
+- [x] 34. Refresh checked-in wrapped browser assets after the latest browser/runtime fixes
+  - [x] 34.1 Re-sync `app/src/main/assets/axolync-browser/` from the current browser build output
+    - Keep the checked-in Android asset tree aligned with the latest browser worker/runtime and preinstalled-plugin fixes.
+  - [x] 34.2 Re-run the packaged-browser asset guard
+    - Confirm the checked-in wrapped asset tree still passes the native/static asset verification after the refresh.
+
 ## Notes
 
 - Tasks labeled (Optional) may be skipped only for MVP builds; mandatory tasks remain required for production readiness
