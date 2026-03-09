@@ -11,8 +11,10 @@ class LocalHttpServerBridgeProxyTest {
         val source = File("src/main/kotlin/com/axolync/android/server/LocalHttpServer.kt").readText()
 
         assertTrue(source.contains("private const val BRIDGE_CONFIG_PATH = \"/__axolync/runtime-bridge-config\""))
+        assertTrue(source.contains("private const val RUNTIME_BACKEND_STATUS_PATH = \"/__axolync/runtime-backend-status\""))
         assertTrue(source.contains("private const val BRIDGE_PROXY_PREFIX = \"/__axolync/bridge/\""))
         assertTrue(source.contains("private fun serveRuntimeBridgeConfig"))
+        assertTrue(source.contains("private fun serveRuntimeBackendStatus"))
         assertTrue(source.contains("private fun proxyBridgeRequest"))
         assertTrue(source.contains("resolveBridgeTargetUrl(session.uri)"))
     }
@@ -49,5 +51,20 @@ class LocalHttpServerBridgeProxyTest {
         assertTrue(source.contains("fetchDirectLrcLibLyrics"))
         assertTrue(source.contains("\"android-local-lrclib\""))
         assertTrue(source.contains("LyricFlow backend unavailable, served local fallback"))
+        assertTrue(source.contains("isLyricflowBackendProcessSupported(): Boolean = false"))
+        assertTrue(source.contains("LyricFlow packaged backend process unsupported on Android, served local fallback"))
+        assertTrue(source.contains("if (bridgeKind == \"lyricflow\" && !isLyricflowBackendProcessSupported())"))
+    }
+
+    @Test
+    fun `LocalHttpServer exposes explicit backend-launch capability status for wrapped Android runtime`() {
+        val source = File("src/main/kotlin/com/axolync/android/server/LocalHttpServer.kt").readText()
+
+        assertTrue(source.contains("\"runtime\": \"android-wrapper\""))
+        assertTrue(source.contains("val lyricflowPythonProcessSupported = false"))
+        assertTrue(source.contains("\"pythonProcessSupported\": \$lyricflowPythonProcessSupported"))
+        assertTrue(source.contains("\"launchAttempted\": false"))
+        assertTrue(source.contains("\"launchSucceeded\": false"))
+        assertTrue(source.contains("\"executionMode\": \"android-local-lrclib-fallback\""))
     }
 }

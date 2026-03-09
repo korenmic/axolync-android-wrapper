@@ -33,6 +33,7 @@ class LocalHttpServer(
     companion object {
         private const val TAG = "LocalHttpServer"
         private const val BRIDGE_CONFIG_PATH = "/__axolync/runtime-bridge-config"
+        private const val RUNTIME_BACKEND_STATUS_PATH = "/__axolync/runtime-backend-status"
         private const val BRIDGE_PROXY_PREFIX = "/__axolync/bridge/"
         private const val BRIDGE_DEV_LOG_PATH = "/__axolync/dev-bridge-log"
         private const val BRIDGE_HOST = "localhost"
@@ -69,6 +70,10 @@ class LocalHttpServer(
     override fun serve(session: IHTTPSession): Response {
         if (session.uri == BRIDGE_CONFIG_PATH && (session.method == Method.GET || session.method == Method.HEAD)) {
             return serveRuntimeBridgeConfig(session)
+        }
+
+        if (session.uri == RUNTIME_BACKEND_STATUS_PATH && (session.method == Method.GET || session.method == Method.HEAD)) {
+            return serveRuntimeBackendStatus(session)
         }
 
         if (session.uri == BRIDGE_DEV_LOG_PATH && session.method == Method.POST) {
@@ -193,6 +198,30 @@ class LocalHttpServer(
         return response
     }
 
+    private fun serveRuntimeBackendStatus(session: IHTTPSession): Response {
+        val lyricflowPythonProcessSupported = false
+        val payload = """
+            {
+              "runtime": "android-wrapper",
+              "lyricflow": {
+                "pythonProcessSupported": $lyricflowPythonProcessSupported,
+                "launchAttempted": false,
+                "launchSucceeded": false,
+                "health": "unsupported",
+                "executionMode": "android-local-lrclib-fallback"
+              }
+            }
+        """.trimIndent()
+        val response = if (session.method == Method.HEAD) {
+            newFixedLengthResponse(Response.Status.OK, "application/json", "")
+        } else {
+            newFixedLengthResponse(Response.Status.OK, "application/json", payload)
+        }
+        response.addHeader("Content-Type", "application/json")
+        response.addHeader("Cache-Control", "no-store")
+        return response
+    }
+
     private fun handleBridgeDevLog(session: IHTTPSession): Response {
         return try {
             val payload = readRequestBody(session)
@@ -227,6 +256,13 @@ class LocalHttpServer(
 
     private fun proxyBridgeRequest(session: IHTTPSession, targetUrl: String, bridgeKind: String?): Response {
         val requestBody = if (session.method == Method.POST) readRequestBody(session) else ByteArray(0)
+        if (bridgeKind == "lyricflow" && !isLyricflowBackendProcessSupported()) {
+            val fallback = handleLyricflowBridgeFallback(session, requestBody)
+            if (fallback != null) {
+                Log.w(TAG, "LyricFlow packaged backend process unsupported on Android, served local fallback for ${session.uri}")
+                return fallback
+            }
+        }
         return try {
             val connection = (URL(targetUrl).openConnection() as HttpURLConnection).apply {
                 requestMethod = session.method.name
@@ -285,6 +321,8 @@ class LocalHttpServer(
             )
         }
     }
+
+    private fun isLyricflowBackendProcessSupported(): Boolean = false
 
     private fun readRequestBody(session: IHTTPSession): ByteArray {
         val body = ByteArrayOutputStream()
