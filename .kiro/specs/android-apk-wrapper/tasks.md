@@ -521,6 +521,14 @@ The implementation uses Kotlin for all native Android components and integrates 
   - [x] 41.2 Re-run the packaged-browser parity guards
     - Confirm the checked-in wrapped asset tree and preinstalled plugin assets stay in sync with the current browser outputs.
 
+- [x] 42. Re-sync checked-in wrapped browser assets after the latest browser runtime bundle and preinstalled-plugin refresh
+  - [x] 42.1 Reproduce wrapped-asset drift after the latest browser build
+    - Cover the case where `app/src/main/assets/axolync-browser/` still points at an older `main-*.js` bundle or older preinstalled bridge ZIP metadata after browser-side fixes already landed.
+  - [x] 42.2 Refresh the checked-in wrapped asset tree
+    - Re-sync the wrapped browser asset tree so Android packages the current browser index, preinstalled bridge ZIPs, and manifest metadata.
+  - [x] 42.3 Re-run parity coverage
+    - Keep the packaged-browser asset tests green against the refreshed checked-in asset tree.
+
 ## Notes
 
 - Tasks labeled (Optional) may be skipped only for MVP builds; mandatory tasks remain required for production readiness
