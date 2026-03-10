@@ -310,23 +310,44 @@ tasks.named("copyAxolyncBrowserAssets") {
     dependsOn("buildAxolyncBrowserDist")
 }
 
+val lyricflowBackendRoot = providers.environmentVariable("AXOLYNC_LYRICFLOW_BACKEND_ROOT")
+    .orElse("${rootProject.projectDir}/../axolync-lyricflow-plugin/backend-python")
+val lyricflowBackendSourceDir = lyricflowBackendRoot.map { File(it).resolve("src/axolync_lyricflow_backend") }
+val lyricflowAndroidBridgeSourceDir = lyricflowBackendRoot.map { File(it).resolve("src/axolync_android_bridge") }
 
 val prepareEmbeddedPythonScaffold by tasks.registering {
-    description = "Prepare placeholder embedded Python source and requirements inputs for Android packaging"
+    description = "Stage Android-usable Python sources from the LyricFlow backend repo"
     group = "build"
 
+    inputs.dir(lyricflowBackendSourceDir)
+    inputs.dir(lyricflowAndroidBridgeSourceDir)
     outputs.dir(embeddedPythonRoot)
 
     doLast {
         val sourceDir = embeddedPythonSourceDir.get().asFile
-        val packageDir = File(sourceDir, "axolync_android_bridge")
         val requirementsFile = embeddedPythonRequirementsFile.get().asFile
+        val backendSourceDir = lyricflowBackendSourceDir.get()
+        val bridgeSourceDir = lyricflowAndroidBridgeSourceDir.get()
 
-        packageDir.mkdirs()
-        val initFile = File(packageDir, "__init__.py")
-        if (!initFile.exists()) {
-            initFile.writeText("# Placeholder embedded Python package scaffold.\n")
+        if (!backendSourceDir.exists()) {
+            throw GradleException("Expected LyricFlow backend source directory at ${backendSourceDir.absolutePath}")
         }
+        if (!bridgeSourceDir.exists()) {
+            throw GradleException("Expected Android bridge source directory at ${bridgeSourceDir.absolutePath}")
+        }
+
+        delete(sourceDir)
+        sourceDir.mkdirs()
+
+        copy {
+            from(backendSourceDir)
+            into(File(sourceDir, "axolync_lyricflow_backend"))
+        }
+        copy {
+            from(bridgeSourceDir)
+            into(File(sourceDir, "axolync_android_bridge"))
+        }
+
         if (!requirementsFile.exists()) {
             requirementsFile.parentFile.mkdirs()
             requirementsFile.writeText("# Populated by later Android embedded-Python packaging tasks.\n")
