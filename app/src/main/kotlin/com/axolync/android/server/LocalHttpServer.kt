@@ -10,11 +10,8 @@ import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.net.HttpURLConnection
-import java.net.URLEncoder
 import java.net.URL
-import org.json.JSONArray
 import org.json.JSONObject
-import org.json.JSONTokener
 
 /**
  * LocalHttpServer serves bundled web application assets via HTTP on localhost.
@@ -26,11 +23,13 @@ class LocalHttpServer(
     private val port: Int = 0, // 0 = auto-assign
     private val runtimeBackendStatusProvider: () -> EmbeddedPythonRuntimeStatus = {
         EmbeddedPythonManager.getInstance(context).runSelfTest()
+    },
+    private val lyricflowBridgeInvoker: (String, String, String?) -> String = { operation, payloadJson, headersJson ->
+        EmbeddedPythonManager.getInstance(context).invokeLyricFlowBridge(operation, payloadJson, headersJson)
     }
 ) : NanoHTTPD("127.0.0.1", port) {
 
     private data class ResolvedAsset(val requestPath: String, val assetPath: String, val mimeType: String)
-    private data class SongIdentity(val artist: String, val title: String)
 
     private val assetManager: AssetManager = context.assets
     private val assetBasePath = "axolync-browser"
@@ -45,9 +44,6 @@ class LocalHttpServer(
         private const val SONGSENSE_BACKEND_PORT = 8000
         private const val SYNCENGINE_BACKEND_PORT = 3000
         private const val LYRICFLOW_BACKEND_PORT = 8093
-        private const val LRCLIB_GET_URL = "https://lrclib.net/api/get"
-        private const val LRCLIB_SEARCH_URL = "https://lrclib.net/api/search"
-
         // Supported MIME types (explicit mapping)
         private val MIME_TYPES = mapOf(
             ".html" to "text/html",
@@ -277,11 +273,10 @@ class LocalHttpServer(
 
     private fun proxyBridgeRequest(session: IHTTPSession, targetUrl: String, bridgeKind: String?): Response {
         val requestBody = if (session.method == Method.POST) readRequestBody(session) else ByteArray(0)
-        if (bridgeKind == "lyricflow" && !isLyricflowBackendProcessSupported()) {
-            val fallback = handleLyricflowBridgeFallback(session, requestBody)
-            if (fallback != null) {
-                Log.w(TAG, "LyricFlow packaged backend process unsupported on Android, served local fallback for ${session.uri}")
-                return fallback
+        if (bridgeKind == "lyricflow") {
+            val embeddedResponse = handleEmbeddedLyricflowBridgeRequest(session, requestBody)
+            if (embeddedResponse != null) {
+                return embeddedResponse
             }
         }
         return try {
@@ -327,13 +322,6 @@ class LocalHttpServer(
             response.addHeader("Cache-Control", "no-store")
             response
         } catch (error: Exception) {
-            if (bridgeKind == "lyricflow") {
-                val fallback = handleLyricflowBridgeFallback(session, requestBody)
-                if (fallback != null) {
-                    Log.w(TAG, "LyricFlow backend unavailable, served local fallback for ${session.uri}", error)
-                    return fallback
-                }
-            }
             Log.w(TAG, "Bridge proxy failure for $targetUrl", error)
             newFixedLengthResponse(
                 Response.Status.lookup(502) ?: Response.Status.INTERNAL_ERROR,
@@ -343,231 +331,79 @@ class LocalHttpServer(
         }
     }
 
-    private fun isLyricflowBackendProcessSupported(): Boolean = false
-
     private fun readRequestBody(session: IHTTPSession): ByteArray {
         val body = ByteArrayOutputStream()
         session.inputStream.use { input -> input.copyTo(body) }
         return body.toByteArray()
     }
 
-    private fun handleLyricflowBridgeFallback(session: IHTTPSession, requestBody: ByteArray): Response? {
+    private fun handleEmbeddedLyricflowBridgeRequest(session: IHTTPSession, requestBody: ByteArray): Response? {
         val suffix = session.uri.removePrefix("${BRIDGE_PROXY_PREFIX}lyricflow")
         if (session.method != Method.POST) return null
+        val operation = when (suffix) {
+            "/v1/lyricflow/initialize" -> "initialize_session"
+            "/v1/lyricflow/get-lyrics" -> "get_lyrics"
+            "/v1/lyricflow/dispose" -> "dispose_session"
+            else -> return null
+        }
 
-        return when (suffix) {
-            "/v1/lyricflow/initialize", "/v1/lyricflow/dispose" -> {
-                newFixedLengthResponse(
-                    Response.Status.OK,
-                    "application/json",
-                    JSONObject().put("ok", true).put("mode", "android-local-lrclib").toString()
-                ).apply {
-                    addHeader("Cache-Control", "no-store")
+        val runtimeStatus = runtimeBackendStatusProvider()
+        if (!runtimeStatus.startupSucceeded || runtimeStatus.health != "ok") {
+            Log.e(
+                TAG,
+                "Embedded LyricFlow bridge request blocked by unhealthy Python runtime stage=${runtimeStatus.startupFailureStage} message=${runtimeStatus.startupFailureMessage}"
+            )
+            val errorPayload = JSONObject()
+                .put("code", "PROVIDER_UNAVAILABLE")
+                .put("message", "Embedded Python runtime unavailable for LyricFlow")
+                .put("retryable", false)
+                .put(
+                    "details",
+                    JSONObject()
+                        .put("startupFailureStage", runtimeStatus.startupFailureStage ?: JSONObject.NULL)
+                        .put("startupFailureMessage", runtimeStatus.startupFailureMessage ?: JSONObject.NULL)
+                        .put("health", runtimeStatus.health)
+                )
+            return newFixedLengthResponse(
+                Response.Status.lookup(502) ?: Response.Status.INTERNAL_ERROR,
+                "application/json",
+                errorPayload.toString()
+            ).apply {
+                addHeader("Cache-Control", "no-store")
+            }
+        }
+        return try {
+            val responseJson = invokeEmbeddedLyricflowBridge(operation, requestBody, session.headers)
+            newFixedLengthResponse(Response.Status.OK, "application/json", responseJson).apply {
+                addHeader("Cache-Control", "no-store")
+            }
+        } catch (error: Exception) {
+            Log.e(TAG, "Embedded LyricFlow bridge invocation failed for $suffix", error)
+            newFixedLengthResponse(
+                Response.Status.lookup(502) ?: Response.Status.INTERNAL_ERROR,
+                "text/plain",
+                "502 Embedded LyricFlow bridge invocation failed: ${error.message ?: "unknown"}"
+            )
+        }
+    }
+
+    private fun invokeEmbeddedLyricflowBridge(
+        operation: String,
+        requestBody: ByteArray,
+        headers: Map<String, String>
+    ): String {
+        val payloadJson = String(requestBody, Charsets.UTF_8)
+        val headerJson = JSONObject().apply {
+            headers.forEach { (key, value) ->
+                if (!key.equals("content-length", ignoreCase = true) &&
+                    !key.equals("host", ignoreCase = true) &&
+                    !key.equals("connection", ignoreCase = true)
+                ) {
+                    put(key, value)
                 }
             }
-            "/v1/lyricflow/get-lyrics" -> {
-                try {
-                    val payload = JSONObject(String(requestBody, Charsets.UTF_8))
-                    val songId = payload.optString("songId", "")
-                    val result = fetchDirectLrcLibLyrics(songId)
-                    newFixedLengthResponse(Response.Status.OK, "application/json", result.toString()).apply {
-                        addHeader("Cache-Control", "no-store")
-                    }
-                } catch (error: Exception) {
-                    Log.w(TAG, "LyricFlow local fallback failed", error)
-                    newFixedLengthResponse(
-                        Response.Status.lookup(502) ?: Response.Status.INTERNAL_ERROR,
-                        "text/plain",
-                        "502 LyricFlow local fallback failed: ${error.message ?: "unknown"}"
-                    )
-                }
-            }
-            else -> null
-        }
-    }
-
-    private fun fetchDirectLrcLibLyrics(songId: String): JSONObject {
-        val identity = parseSongIdentity(songId)
-            ?: throw IOException("LRCLIB fallback could not parse song identity from \"$songId\"")
-
-        try {
-            val getRecord = fetchJsonObject(
-                buildLrcLibUrl(
-                    LRCLIB_GET_URL,
-                    linkedMapOf(
-                        "artist_name" to identity.artist,
-                        "track_name" to identity.title,
-                    )
-                )
-            )
-            extractSyncedLyrics(getRecord)?.let { return it }
-        } catch (error: IOException) {
-            if (!(error.message ?: "").contains("404")) {
-                throw error
-            }
-        }
-
-        val searchRecord = fetchJsonArray(
-            buildLrcLibUrl(
-                LRCLIB_SEARCH_URL,
-                linkedMapOf(
-                    "artist_name" to identity.artist,
-                    "track_name" to identity.title,
-                )
-            )
-        )
-        var picked = pickBestRecord(searchRecord, identity)
-        if (picked == null && identity.artist.isNotBlank()) {
-            val titleOnly = fetchJsonArray(
-                buildLrcLibUrl(
-                    LRCLIB_SEARCH_URL,
-                    linkedMapOf("track_name" to identity.title)
-                )
-            )
-            picked = pickBestRecord(titleOnly, identity)
-        }
-
-        return extractSyncedLyrics(picked)
-            ?: throw IOException("LRCLIB fallback returned no synced lyrics for \"$songId\"")
-    }
-
-    private fun buildLrcLibUrl(baseUrl: String, params: Map<String, String>): String {
-        val query = params.entries
-            .filter { it.value.trim().isNotEmpty() }
-            .joinToString("&") {
-                "${URLEncoder.encode(it.key, "UTF-8")}=${URLEncoder.encode(it.value.trim(), "UTF-8")}"
-            }
-        return if (query.isEmpty()) baseUrl else "$baseUrl?$query"
-    }
-
-    private fun fetchJsonObject(url: String): JSONObject {
-        val parsed = fetchJson(url)
-        if (parsed is JSONObject) return parsed
-        throw IOException("LRCLIB request returned invalid object payload")
-    }
-
-    private fun fetchJsonArray(url: String): JSONArray {
-        val parsed = fetchJson(url)
-        if (parsed is JSONArray) return parsed
-        throw IOException("LRCLIB request returned invalid array payload")
-    }
-
-    private fun fetchJson(url: String): Any {
-        val connection = (URL(url).openConnection() as HttpURLConnection).apply {
-            requestMethod = "GET"
-            instanceFollowRedirects = false
-            connectTimeout = 4000
-            readTimeout = 10000
-            doInput = true
-            setRequestProperty("Accept", "application/json")
-            setRequestProperty("Cache-Control", "no-store")
-            setRequestProperty("User-Agent", "AxolyncAndroidWrapper/1.0")
-        }
-
-        val status = connection.responseCode
-        val stream = if (status in 200..299) connection.inputStream else connection.errorStream
-        val body = stream?.bufferedReader()?.use { it.readText() } ?: ""
-        if (status !in 200..299) {
-            throw IOException("LRCLIB request failed: $status ${connection.responseMessage}".trim())
-        }
-        return JSONTokener(body).nextValue()
-    }
-
-    private fun parseSongIdentity(songId: String): SongIdentity? {
-        val raw = normalizeLrcLibText(songId)
-        if (raw.isEmpty()) return null
-
-        listOf("::", " - ", " — ", "|", "/").forEach { separator ->
-            if (!raw.contains(separator)) return@forEach
-            val parts = raw.split(separator, limit = 2)
-            if (parts.size != 2) return@forEach
-            val artist = normalizeLrcLibText(parts[0])
-            val title = normalizeLrcLibText(parts[1])
-            if (artist.isNotEmpty() && title.isNotEmpty()) {
-                return SongIdentity(artist, title)
-            }
-        }
-
-        val colonParts = raw.split(':').map { normalizeLrcLibText(it) }.filter { it.isNotEmpty() }
-        if (colonParts.size >= 3 && colonParts[0].contains('.')) {
-            return SongIdentity(
-                artist = normalizeLrcLibText(colonParts.drop(2).joinToString(":")),
-                title = colonParts[1]
-            )
-        }
-        if (colonParts.size == 2) {
-            return SongIdentity(artist = colonParts[0], title = colonParts[1])
-        }
-
-        return null
-    }
-
-    private fun normalizeLrcLibText(value: String): String {
-        return value.trim().replace(Regex("\\s+"), " ")
-    }
-
-    private fun pickBestRecord(rows: JSONArray, identity: SongIdentity): JSONObject? {
-        val artist = identity.artist.lowercase()
-        val title = identity.title.lowercase()
-        var firstObject: JSONObject? = null
-        for (index in 0 until rows.length()) {
-            val row = rows.optJSONObject(index) ?: continue
-            if (firstObject == null) firstObject = row
-            val rowArtist = row.optString("artistName").trim().lowercase()
-            val rowTitle = row.optString("trackName").trim().lowercase()
-            if (rowArtist == artist && rowTitle == title) {
-                return row
-            }
-        }
-        return firstObject
-    }
-
-    private fun extractSyncedLyrics(record: JSONObject?): JSONObject? {
-        val syncedLyrics = record?.optString("syncedLyrics")?.trim().orEmpty()
-        if (syncedLyrics.isEmpty()) return null
-
-        val entries = mutableListOf<Pair<Long, String>>()
-        val pattern = Regex("^\\[([^\\]]+)](.*)$")
-        syncedLyrics.split(Regex("\\r?\\n"))
-            .map { it.trim() }
-            .filter { it.isNotEmpty() }
-            .forEach { line ->
-                val match = pattern.find(line) ?: return@forEach
-                val inSongMs = parseLrcTimestamp(match.groupValues[1]) ?: return@forEach
-                val text = normalizeLrcLibText(match.groupValues[2])
-                if (text.isNotEmpty()) {
-                    entries += inSongMs to text
-                }
-            }
-
-        if (entries.isEmpty()) return null
-
-        val units = JSONArray()
-        entries.forEachIndexed { index, entry ->
-            val nextStart = entries.getOrNull(index + 1)?.first ?: (entry.first + 2500L)
-            units.put(
-                JSONObject()
-                    .put("text", entry.second)
-                    .put("inSongMs", entry.first)
-                    .put("durationMs", maxOf(200L, nextStart - entry.first))
-            )
-        }
-        return JSONObject()
-            .put("granularity", "line")
-            .put("units", units)
-    }
-
-    private fun parseLrcTimestamp(value: String): Long? {
-        val match = Regex("^(\\d{2}):(\\d{2})(?:[.:](\\d{1,3}))?$").find(value) ?: return null
-        val minutes = match.groupValues[1].toLongOrNull() ?: return null
-        val seconds = match.groupValues[2].toLongOrNull() ?: return null
-        val fractionRaw = match.groupValues.getOrElse(3) { "0" }.ifEmpty { "0" }
-        val fractionMs = when (fractionRaw.length) {
-            1 -> fractionRaw.toLong() * 100L
-            2 -> fractionRaw.toLong() * 10L
-            else -> fractionRaw.take(3).toLong()
-        }
-        return (minutes * 60_000L) + (seconds * 1000L) + fractionMs
+        }.toString()
+        return lyricflowBridgeInvoker(operation, payloadJson, headerJson)
     }
 
     private fun resolveAsset(uri: String): ResolvedAsset? {

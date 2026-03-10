@@ -20,17 +20,18 @@ class LocalHttpServerRuntimeBackendStatusTest {
         ShadowLog.clear()
         val server = LocalHttpServer(
             RuntimeEnvironment.getApplication(),
-            0
-        ) {
-            EmbeddedPythonRuntimeStatus(
-                startupAttempted = true,
-                startupSucceeded = true,
-                reusedExistingRuntime = false,
-                criticalImportsSucceeded = true,
-                healthCheckSucceeded = true,
-                health = "ok"
-            )
-        }
+            0,
+            runtimeBackendStatusProvider = {
+                EmbeddedPythonRuntimeStatus(
+                    startupAttempted = true,
+                    startupSucceeded = true,
+                    reusedExistingRuntime = false,
+                    criticalImportsSucceeded = true,
+                    healthCheckSucceeded = true,
+                    health = "ok"
+                )
+            }
+        )
 
         server.start()
         try {

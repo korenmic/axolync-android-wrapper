@@ -3,6 +3,7 @@ package com.axolync.android.python
 import android.content.Context
 import android.util.Log
 import com.chaquo.python.Python
+import com.chaquo.python.PyObject
 import com.chaquo.python.android.AndroidPlatform
 
 class EmbeddedPythonManager internal constructor(
@@ -163,6 +164,25 @@ class EmbeddedPythonManager internal constructor(
     fun isReady(): Boolean = status.startupSucceeded && pythonRuntime != null
 
     fun getPython(): Python? = pythonRuntime as? Python
+
+    fun invokeLyricFlowBridge(operation: String, payloadJson: String = "{}", headersJson: String? = null): String {
+        val runtimeStatus = runSelfTest()
+        if (!runtimeStatus.startupSucceeded || runtimeStatus.health != "ok") {
+            throw IllegalStateException(
+                "Embedded Python runtime unavailable: ${runtimeStatus.startupFailureStage ?: runtimeStatus.health}"
+            )
+        }
+
+        val python = getPython()
+            ?: throw IllegalStateException("Embedded Python runtime missing Python instance")
+        val bridgeModule = python.getModule("axolync_android_bridge.lyricflow_bridge")
+        val bridgeResult: PyObject = if (headersJson == null) {
+            bridgeModule.callAttr("invoke_json", operation, payloadJson)
+        } else {
+            bridgeModule.callAttr("invoke_json", operation, payloadJson, headersJson)
+        }
+        return bridgeResult.toString()
+    }
 
     companion object {
         private const val TAG = "EmbeddedPythonManager"

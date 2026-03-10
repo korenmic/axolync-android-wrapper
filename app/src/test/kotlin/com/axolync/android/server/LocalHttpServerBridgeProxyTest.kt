@@ -45,15 +45,14 @@ class LocalHttpServerBridgeProxyTest {
     fun `LocalHttpServer can satisfy lyricflow bridge requests locally when the packaged backend is absent`() {
         val source = File("src/main/kotlin/com/axolync/android/server/LocalHttpServer.kt").readText()
 
-        assertTrue(source.contains("handleLyricflowBridgeFallback"))
-        assertTrue(source.contains("LRCLIB_GET_URL"))
-        assertTrue(source.contains("LRCLIB_SEARCH_URL"))
-        assertTrue(source.contains("fetchDirectLrcLibLyrics"))
-        assertTrue(source.contains("\"android-local-lrclib\""))
-        assertTrue(source.contains("LyricFlow backend unavailable, served local fallback"))
-        assertTrue(source.contains("isLyricflowBackendProcessSupported(): Boolean = false"))
-        assertTrue(source.contains("LyricFlow packaged backend process unsupported on Android, served local fallback"))
-        assertTrue(source.contains("if (bridgeKind == \"lyricflow\" && !isLyricflowBackendProcessSupported())"))
+        assertTrue(source.contains("handleEmbeddedLyricflowBridgeRequest"))
+        assertTrue(source.contains("lyricflowBridgeInvoker"))
+        assertTrue(source.contains("invokeEmbeddedLyricflowBridge"))
+        assertTrue(source.contains("Embedded LyricFlow bridge invocation failed"))
+        assertTrue(source.contains("\"PROVIDER_UNAVAILABLE\""))
+        assertTrue(source.contains("Embedded Python runtime unavailable for LyricFlow"))
+        assertTrue(source.contains("Embedded LyricFlow bridge request blocked by unhealthy Python runtime"))
+        assertTrue(source.contains("if (bridgeKind == \"lyricflow\")"))
     }
 
     @Test
