@@ -9,7 +9,11 @@ plugins {
 
 val embeddedPythonRoot = layout.buildDirectory.dir("generated/axolync-python")
 val embeddedPythonSourceDir = embeddedPythonRoot.map { it.dir("src/main/python") }
-val embeddedPythonRequirementsFile = embeddedPythonRoot.map { it.file("requirements-android.txt") }
+val lyricflowBackendRoot = providers.environmentVariable("AXOLYNC_LYRICFLOW_BACKEND_ROOT")
+    .orElse("${rootProject.projectDir}/../axolync-lyricflow-plugin/backend-python")
+val lyricflowBackendSourceDir = lyricflowBackendRoot.map { File(it).resolve("src/axolync_lyricflow_backend") }
+val lyricflowAndroidBridgeSourceDir = lyricflowBackendRoot.map { File(it).resolve("src/axolync_android_bridge") }
+val lyricflowAndroidRequirementsFile = lyricflowBackendRoot.map { File(it).resolve("requirements-android.txt") }
 
 android {
     namespace = "com.axolync.android"
@@ -115,7 +119,7 @@ chaquopy {
         version = "3.12"
         buildPython("/usr/bin/python3.12")
         pip {
-            install("-r", embeddedPythonRequirementsFile.get().asFile.absolutePath)
+            install("-r", lyricflowAndroidRequirementsFile.get().absolutePath)
         }
     }
 
@@ -310,22 +314,18 @@ tasks.named("copyAxolyncBrowserAssets") {
     dependsOn("buildAxolyncBrowserDist")
 }
 
-val lyricflowBackendRoot = providers.environmentVariable("AXOLYNC_LYRICFLOW_BACKEND_ROOT")
-    .orElse("${rootProject.projectDir}/../axolync-lyricflow-plugin/backend-python")
-val lyricflowBackendSourceDir = lyricflowBackendRoot.map { File(it).resolve("src/axolync_lyricflow_backend") }
-val lyricflowAndroidBridgeSourceDir = lyricflowBackendRoot.map { File(it).resolve("src/axolync_android_bridge") }
-
 val prepareEmbeddedPythonScaffold by tasks.registering {
     description = "Stage Android-usable Python sources from the LyricFlow backend repo"
     group = "build"
 
     inputs.dir(lyricflowBackendSourceDir)
     inputs.dir(lyricflowAndroidBridgeSourceDir)
+    inputs.file(lyricflowAndroidRequirementsFile)
     outputs.dir(embeddedPythonRoot)
 
     doLast {
         val sourceDir = embeddedPythonSourceDir.get().asFile
-        val requirementsFile = embeddedPythonRequirementsFile.get().asFile
+        val requirementsFile = lyricflowAndroidRequirementsFile.get()
         val backendSourceDir = lyricflowBackendSourceDir.get()
         val bridgeSourceDir = lyricflowAndroidBridgeSourceDir.get()
 
@@ -349,8 +349,7 @@ val prepareEmbeddedPythonScaffold by tasks.registering {
         }
 
         if (!requirementsFile.exists()) {
-            requirementsFile.parentFile.mkdirs()
-            requirementsFile.writeText("# Populated by later Android embedded-Python packaging tasks.\n")
+            throw GradleException("Expected curated Android requirements file at ${requirementsFile.absolutePath}")
         }
     }
 }

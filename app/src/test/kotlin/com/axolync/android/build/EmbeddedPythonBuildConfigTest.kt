@@ -34,8 +34,12 @@ class EmbeddedPythonBuildConfigTest {
         assertTrue(source.contains("generated/axolync-python"))
         assertTrue(source.contains("chaquopy {"))
         assertTrue(source.contains("srcDir(embeddedPythonSourceDir)"))
+        assertTrue(source.contains("lyricflowAndroidRequirementsFile"))
         assertTrue(source.contains("requirements-android.txt"))
-        assertTrue(source.contains("install(\"-r\", embeddedPythonRequirementsFile.get().asFile.absolutePath)"))
+        assertTrue(source.contains("axolync-lyricflow-plugin/backend-python"))
+        assertTrue(!source.contains("embeddedPythonRequirementsFile"))
+        assertTrue(source.contains("requirements-android.txt"))
+        assertTrue(source.contains("install(\"-r\", lyricflowAndroidRequirementsFile.get().absolutePath)"))
         assertTrue(source.contains("prepareEmbeddedPythonScaffold"))
         assertTrue(source.contains("dependsOn(prepareEmbeddedPythonScaffold)"))
     }
