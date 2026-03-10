@@ -14,7 +14,9 @@ class LocalHttpServerEmbeddedLyricflowBridgeTest {
         assertTrue(source.contains("\"/v1/lyricflow/initialize\" -> \"initialize_session\""))
         assertTrue(source.contains("\"/v1/lyricflow/get-lyrics\" -> \"get_lyrics\""))
         assertTrue(source.contains("\"/v1/lyricflow/dispose\" -> \"dispose_session\""))
-        assertTrue(source.contains("invokeEmbeddedLyricflowBridge(operation, requestBody, session.headers)"))
+        assertTrue(source.contains("invokeEmbeddedLyricflowBridgeWithTimeout(operation, requestBody, session.headers)"))
+        assertTrue(source.contains("\"BRIDGE_TIMEOUT\""))
+        assertTrue(source.contains("lyricflowBridgeTimeoutMs"))
         assertTrue(source.contains("return lyricflowBridgeInvoker(operation, payloadJson, headerJson)"))
     }
 

@@ -5,6 +5,7 @@ import android.util.Log
 import com.chaquo.python.Python
 import com.chaquo.python.PyObject
 import com.chaquo.python.android.AndroidPlatform
+import com.axolync.android.logging.RuntimeNativeLogStore
 
 class EmbeddedPythonManager internal constructor(
     private val appContext: Context,
@@ -114,9 +115,11 @@ class EmbeddedPythonManager internal constructor(
         try {
             if (!reusedExistingRuntime) {
                 Log.i(TAG, "Starting embedded Python runtime")
+                RuntimeNativeLogStore.record(TAG, "info", "Embedded Python runtime start requested")
                 launcher.start(appContext)
             } else {
                 Log.i(TAG, "Embedded Python runtime already started by host process; acquiring instance")
+                RuntimeNativeLogStore.record(TAG, "info", "Embedded Python runtime already started; reusing host runtime")
             }
         } catch (error: Exception) {
             status = EmbeddedPythonRuntimeStatus(
@@ -128,6 +131,12 @@ class EmbeddedPythonManager internal constructor(
                 health = "failed"
             )
             Log.e(TAG, "Embedded Python runtime failed to start", error)
+            RuntimeNativeLogStore.record(
+                TAG,
+                "error",
+                "Embedded Python runtime failed to start",
+                error.message ?: error.javaClass.simpleName
+            )
             return status
         }
 
@@ -142,6 +151,7 @@ class EmbeddedPythonManager internal constructor(
                 health = "started"
             )
             Log.i(TAG, "Embedded Python runtime is ready")
+            RuntimeNativeLogStore.record(TAG, "info", "Embedded Python runtime ready")
             status
         } catch (error: Exception) {
             status = EmbeddedPythonRuntimeStatus(
@@ -153,6 +163,12 @@ class EmbeddedPythonManager internal constructor(
                 health = "failed"
             )
             Log.e(TAG, "Embedded Python runtime failed after start during instance acquisition", error)
+            RuntimeNativeLogStore.record(
+                TAG,
+                "error",
+                "Embedded Python runtime failed during instance acquisition",
+                error.message ?: error.javaClass.simpleName
+            )
             status
         }
     }
@@ -174,10 +190,17 @@ class EmbeddedPythonManager internal constructor(
 
         if (status.health == "ok") {
             Log.i(TAG, "Embedded Python runtime health check passed")
+            RuntimeNativeLogStore.record(TAG, "info", "Embedded Python runtime health check passed")
         } else {
             Log.e(
                 TAG,
                 "Embedded Python runtime health check failed at ${status.startupFailureStage}: ${status.startupFailureMessage}"
+            )
+            RuntimeNativeLogStore.record(
+                TAG,
+                "error",
+                "Embedded Python runtime health check failed",
+                "${status.startupFailureStage ?: "unknown"} | ${status.startupFailureMessage ?: "unknown"}"
             )
         }
         return status

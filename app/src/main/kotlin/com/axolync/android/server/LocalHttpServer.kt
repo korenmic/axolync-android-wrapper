@@ -3,6 +3,7 @@ package com.axolync.android.server
 import android.content.Context
 import android.content.res.AssetManager
 import android.util.Log
+import com.axolync.android.logging.RuntimeNativeLogStore
 import com.axolync.android.python.EmbeddedPythonManager
 import com.axolync.android.python.EmbeddedPythonRuntimeStatus
 import fi.iki.elonen.NanoHTTPD
@@ -11,6 +12,9 @@ import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 import org.json.JSONObject
 
 /**
@@ -26,7 +30,8 @@ class LocalHttpServer(
     },
     private val lyricflowBridgeInvoker: (String, String, String?) -> String = { operation, payloadJson, headersJson ->
         EmbeddedPythonManager.getInstance(context).invokeLyricFlowBridge(operation, payloadJson, headersJson)
-    }
+    },
+    private val lyricflowBridgeTimeoutMs: Long = 15_000L
 ) : NanoHTTPD("127.0.0.1", port) {
 
     private data class ResolvedAsset(val requestPath: String, val assetPath: String, val mimeType: String)
@@ -38,6 +43,7 @@ class LocalHttpServer(
         private const val TAG = "LocalHttpServer"
         private const val BRIDGE_CONFIG_PATH = "/__axolync/runtime-bridge-config"
         private const val RUNTIME_BACKEND_STATUS_PATH = "/__axolync/runtime-backend-status"
+        private const val RUNTIME_NATIVE_LOG_PATH = "/__axolync/runtime-native-log"
         private const val BRIDGE_PROXY_PREFIX = "/__axolync/bridge/"
         private const val BRIDGE_DEV_LOG_PATH = "/__axolync/dev-bridge-log"
         private const val BRIDGE_HOST = "localhost"
@@ -66,6 +72,7 @@ class LocalHttpServer(
             ".ttf" to "font/ttf",
             ".wasm" to "application/wasm"
         )
+        private val EMBEDDED_BRIDGE_EXECUTOR = Executors.newCachedThreadPool()
     }
 
     override fun serve(session: IHTTPSession): Response {
@@ -75,6 +82,10 @@ class LocalHttpServer(
 
         if (session.uri == RUNTIME_BACKEND_STATUS_PATH && (session.method == Method.GET || session.method == Method.HEAD)) {
             return serveRuntimeBackendStatus(session)
+        }
+
+        if (session.uri == RUNTIME_NATIVE_LOG_PATH && (session.method == Method.GET || session.method == Method.HEAD)) {
+            return serveRuntimeNativeLog(session)
         }
 
         if (session.uri == BRIDGE_DEV_LOG_PATH && session.method == Method.POST) {
@@ -250,6 +261,21 @@ class LocalHttpServer(
         }
     }
 
+    private fun serveRuntimeNativeLog(session: IHTTPSession): Response {
+        val payload = JSONObject()
+            .put("generatedAtMs", System.currentTimeMillis())
+            .put("entries", RuntimeNativeLogStore.toJsonArray())
+            .toString()
+        val response = if (session.method == Method.HEAD) {
+            newFixedLengthResponse(Response.Status.OK, "application/json", "")
+        } else {
+            newFixedLengthResponse(Response.Status.OK, "application/json", payload)
+        }
+        response.addHeader("Content-Type", "application/json")
+        response.addHeader("Cache-Control", "no-store")
+        return response
+    }
+
     private fun resolveBridgeKind(uri: String): String? {
         if (!uri.startsWith(BRIDGE_PROXY_PREFIX)) return null
         val remainder = uri.removePrefix(BRIDGE_PROXY_PREFIX)
@@ -353,6 +379,12 @@ class LocalHttpServer(
                 TAG,
                 "Embedded LyricFlow bridge request blocked by unhealthy Python runtime stage=${runtimeStatus.startupFailureStage} message=${runtimeStatus.startupFailureMessage}"
             )
+            RuntimeNativeLogStore.record(
+                TAG,
+                "error",
+                "Embedded LyricFlow bridge request blocked by unhealthy runtime",
+                "operation=$operation stage=${runtimeStatus.startupFailureStage ?: "unknown"} message=${runtimeStatus.startupFailureMessage ?: "unknown"}"
+            )
             val errorPayload = JSONObject()
                 .put("code", "PROVIDER_UNAVAILABLE")
                 .put("message", "Embedded Python runtime unavailable for LyricFlow")
@@ -372,18 +404,94 @@ class LocalHttpServer(
                 addHeader("Cache-Control", "no-store")
             }
         }
+        val requestStartedAtMs = System.currentTimeMillis()
+        RuntimeNativeLogStore.record(
+            TAG,
+            "info",
+            "Embedded LyricFlow bridge request started",
+            "operation=$operation bytes=${requestBody.size}"
+        )
         return try {
-            val responseJson = invokeEmbeddedLyricflowBridge(operation, requestBody, session.headers)
+            val responseJson = invokeEmbeddedLyricflowBridgeWithTimeout(operation, requestBody, session.headers)
+            val elapsedMs = System.currentTimeMillis() - requestStartedAtMs
+            RuntimeNativeLogStore.record(
+                TAG,
+                "info",
+                "Embedded LyricFlow bridge request succeeded",
+                "operation=$operation elapsedMs=$elapsedMs"
+            )
             newFixedLengthResponse(Response.Status.OK, "application/json", responseJson).apply {
                 addHeader("Cache-Control", "no-store")
             }
+        } catch (error: TimeoutException) {
+            val elapsedMs = System.currentTimeMillis() - requestStartedAtMs
+            RuntimeNativeLogStore.record(
+                TAG,
+                "error",
+                "Embedded LyricFlow bridge request timed out",
+                "operation=$operation elapsedMs=$elapsedMs timeoutMs=$lyricflowBridgeTimeoutMs"
+            )
+            val errorPayload = JSONObject()
+                .put("code", "BRIDGE_TIMEOUT")
+                .put("message", "Embedded LyricFlow bridge request timed out")
+                .put("retryable", true)
+                .put(
+                    "details",
+                    JSONObject()
+                        .put("operation", operation)
+                        .put("timeoutMs", lyricflowBridgeTimeoutMs)
+                        .put("elapsedMs", elapsedMs)
+                )
+            newFixedLengthResponse(
+                Response.Status.lookup(504) ?: Response.Status.INTERNAL_ERROR,
+                "application/json",
+                errorPayload.toString()
+            ).apply {
+                addHeader("Cache-Control", "no-store")
+            }
         } catch (error: Exception) {
+            val elapsedMs = System.currentTimeMillis() - requestStartedAtMs
             Log.e(TAG, "Embedded LyricFlow bridge invocation failed for $suffix", error)
+            RuntimeNativeLogStore.record(
+                TAG,
+                "error",
+                "Embedded LyricFlow bridge request failed",
+                "operation=$operation elapsedMs=$elapsedMs error=${error.message ?: error.javaClass.simpleName}"
+            )
+            val errorPayload = JSONObject()
+                .put("code", "BRIDGE_INVOCATION_FAILED")
+                .put("message", "Embedded LyricFlow bridge invocation failed")
+                .put("retryable", false)
+                .put(
+                    "details",
+                    JSONObject()
+                        .put("operation", operation)
+                        .put("elapsedMs", elapsedMs)
+                        .put("error", error.message ?: error.javaClass.simpleName)
+                )
             newFixedLengthResponse(
                 Response.Status.lookup(502) ?: Response.Status.INTERNAL_ERROR,
-                "text/plain",
-                "502 Embedded LyricFlow bridge invocation failed: ${error.message ?: "unknown"}"
-            )
+                "application/json",
+                errorPayload.toString()
+            ).apply {
+                addHeader("Cache-Control", "no-store")
+            }
+        }
+    }
+
+    private fun invokeEmbeddedLyricflowBridgeWithTimeout(
+        operation: String,
+        requestBody: ByteArray,
+        headers: Map<String, String>
+    ): String {
+        val task = EMBEDDED_BRIDGE_EXECUTOR.submit<String> {
+            invokeEmbeddedLyricflowBridge(operation, requestBody, headers)
+        }
+        return try {
+            task.get(lyricflowBridgeTimeoutMs, TimeUnit.MILLISECONDS)
+        } catch (error: TimeoutException) {
+            task.cancel(true)
+            throw error
         }
     }
 

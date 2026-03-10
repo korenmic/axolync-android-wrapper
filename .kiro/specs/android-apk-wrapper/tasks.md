@@ -529,6 +529,16 @@ The implementation uses Kotlin for all native Android components and integrates 
   - [x] 42.3 Re-run parity coverage
     - Keep the packaged-browser asset tests green against the refreshed checked-in asset tree.
 
+- [x] 43. Add structured native LyricFlow bridge diagnostics and explicit timeout handling in the wrapped local server
+  - [x] 43.1 Reproduce the opaque Android embedded LyricFlow `Failed to fetch` path after Python startup succeeds
+    - Cover the case where Android logs already show `launchSucceeded=yes` and `health=ok`, but the WebView only receives a generic fetch failure because the embedded `get-lyrics` bridge call never returns a structured error payload.
+  - [x] 43.2 Record native bridge request start/failure/success details and fail timed-out calls explicitly
+    - Add a wrapped-runtime native log store that records embedded LyricFlow bridge requests, timing, operation name, and failure details.
+    - Expose that native log stream through the wrapped local server for browser debug ZIP export.
+    - Add a timeout around embedded LyricFlow bridge invocation so hangs become explicit `504`-style bridge failures instead of vague browser-side `Failed to fetch` errors.
+  - [x] 43.3 Add focused regression coverage
+    - Prove the wrapped local server exposes the native log endpoint and returns a structured timeout or invocation failure for embedded LyricFlow bridge calls instead of silently hanging.
+
 ## Notes
 
 - Tasks labeled (Optional) may be skipped only for MVP builds; mandatory tasks remain required for production readiness
