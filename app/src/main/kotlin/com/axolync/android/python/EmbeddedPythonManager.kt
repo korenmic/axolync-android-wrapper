@@ -9,7 +9,8 @@ import com.chaquo.python.android.AndroidPlatform
 class EmbeddedPythonManager internal constructor(
     private val appContext: Context,
     private val launcher: PythonRuntimeLauncher = ChaquopyPythonRuntimeLauncher,
-    private val healthProbe: PythonHealthProbe = DefaultPythonHealthProbe
+    private val healthProbe: PythonHealthProbe = DefaultPythonHealthProbe,
+    private val bridgeInvoker: PythonBridgeInvoker = ChaquopyPythonBridgeInvoker,
 ) {
 
     interface PythonRuntimeLauncher {
@@ -20,6 +21,10 @@ class EmbeddedPythonManager internal constructor(
 
     interface PythonHealthProbe {
         fun run(pythonRuntime: Any): EmbeddedPythonRuntimeStatus
+    }
+
+    interface PythonBridgeInvoker {
+        fun invokeLyricFlow(pythonRuntime: Any, operation: String, payloadJson: String = "{}", headersJson: String? = null): String
     }
 
     private object ChaquopyPythonRuntimeLauncher : PythonRuntimeLauncher {
@@ -62,6 +67,25 @@ class EmbeddedPythonManager internal constructor(
                     startupFailureMessage = error.message ?: error.javaClass.simpleName
                 )
             }
+        }
+    }
+
+    private object ChaquopyPythonBridgeInvoker : PythonBridgeInvoker {
+        override fun invokeLyricFlow(
+            pythonRuntime: Any,
+            operation: String,
+            payloadJson: String,
+            headersJson: String?
+        ): String {
+            val python = pythonRuntime as? Python
+                ?: throw IllegalStateException("Embedded Python runtime missing Python instance")
+            val bridgeModule = python.getModule("axolync_android_bridge.lyricflow_bridge")
+            val bridgeResult: PyObject = if (headersJson == null) {
+                bridgeModule.callAttr("invoke_json", operation, payloadJson)
+            } else {
+                bridgeModule.callAttr("invoke_json", operation, payloadJson, headersJson)
+            }
+            return bridgeResult.toString()
         }
     }
 
@@ -165,23 +189,33 @@ class EmbeddedPythonManager internal constructor(
 
     fun getPython(): Python? = pythonRuntime as? Python
 
+    fun runSmokeOperation(): String {
+        val runtimeStatus = runSelfTest()
+        if (!runtimeStatus.startupSucceeded || runtimeStatus.health != "ok") {
+            throw IllegalStateException(
+                "Embedded Python runtime unavailable: ${
+                    runtimeStatus.startupFailureMessage ?: runtimeStatus.startupFailureStage ?: runtimeStatus.health
+                }"
+            )
+        }
+        val runtime = pythonRuntime
+            ?: throw IllegalStateException("Embedded Python runtime missing Python instance")
+        return bridgeInvoker.invokeLyricFlow(runtime, "smoke_ping")
+    }
+
     fun invokeLyricFlowBridge(operation: String, payloadJson: String = "{}", headersJson: String? = null): String {
         val runtimeStatus = runSelfTest()
         if (!runtimeStatus.startupSucceeded || runtimeStatus.health != "ok") {
             throw IllegalStateException(
-                "Embedded Python runtime unavailable: ${runtimeStatus.startupFailureStage ?: runtimeStatus.health}"
+                "Embedded Python runtime unavailable: ${
+                    runtimeStatus.startupFailureMessage ?: runtimeStatus.startupFailureStage ?: runtimeStatus.health
+                }"
             )
         }
 
-        val python = getPython()
+        val runtime = pythonRuntime
             ?: throw IllegalStateException("Embedded Python runtime missing Python instance")
-        val bridgeModule = python.getModule("axolync_android_bridge.lyricflow_bridge")
-        val bridgeResult: PyObject = if (headersJson == null) {
-            bridgeModule.callAttr("invoke_json", operation, payloadJson)
-        } else {
-            bridgeModule.callAttr("invoke_json", operation, payloadJson, headersJson)
-        }
-        return bridgeResult.toString()
+        return bridgeInvoker.invokeLyricFlow(runtime, operation, payloadJson, headersJson)
     }
 
     companion object {
