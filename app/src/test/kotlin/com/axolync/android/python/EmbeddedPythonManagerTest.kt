@@ -18,7 +18,7 @@ class EmbeddedPythonManagerTest {
     @Test
     fun `first startup starts runtime and reports success`() {
         val launcher = FakePythonRuntimeLauncher(initiallyStarted = false)
-        val manager = EmbeddedPythonManager(appContext, launcher)
+        val manager = EmbeddedPythonManager(appContext, launcher, FakePythonHealthProbe())
 
         val status = manager.startIfNeeded()
 
@@ -32,7 +32,7 @@ class EmbeddedPythonManagerTest {
     @Test
     fun `repeated startup reuses runtime without restarting it`() {
         val launcher = FakePythonRuntimeLauncher(initiallyStarted = false)
-        val manager = EmbeddedPythonManager(appContext, launcher)
+        val manager = EmbeddedPythonManager(appContext, launcher, FakePythonHealthProbe())
 
         manager.startIfNeeded()
         val secondStatus = manager.startIfNeeded()
@@ -50,7 +50,7 @@ class EmbeddedPythonManagerTest {
             initiallyStarted = false,
             startFailure = IllegalStateException("python boot failed")
         )
-        val manager = EmbeddedPythonManager(appContext, launcher)
+        val manager = EmbeddedPythonManager(appContext, launcher, FakePythonHealthProbe())
 
         val status = manager.startIfNeeded()
 
@@ -60,6 +60,19 @@ class EmbeddedPythonManagerTest {
         assertEquals("python boot failed", status.startupFailureMessage)
         assertEquals(1, launcher.startCalls)
         assertFalse(manager.isReady())
+    }
+
+    @Test
+    fun `self test records healthy imports and health result`() {
+        val launcher = FakePythonRuntimeLauncher(initiallyStarted = false)
+        val manager = EmbeddedPythonManager(appContext, launcher, FakePythonHealthProbe())
+
+        val status = manager.runSelfTest()
+
+        assertTrue(status.startupSucceeded)
+        assertEquals(true, status.criticalImportsSucceeded)
+        assertEquals(true, status.healthCheckSucceeded)
+        assertEquals("ok", status.health)
     }
 
     private class FakePythonRuntimeLauncher(
@@ -83,5 +96,15 @@ class EmbeddedPythonManagerTest {
             instanceFailure?.let { throw it }
             return Any()
         }
+    }
+
+    private class FakePythonHealthProbe(
+        private val result: EmbeddedPythonRuntimeStatus = EmbeddedPythonRuntimeStatus(
+            criticalImportsSucceeded = true,
+            healthCheckSucceeded = true,
+            health = "ok"
+        )
+    ) : EmbeddedPythonManager.PythonHealthProbe {
+        override fun run(pythonRuntime: Any): EmbeddedPythonRuntimeStatus = result
     }
 }

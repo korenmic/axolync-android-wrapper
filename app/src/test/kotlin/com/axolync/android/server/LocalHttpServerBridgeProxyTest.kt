@@ -61,10 +61,11 @@ class LocalHttpServerBridgeProxyTest {
         val source = File("src/main/kotlin/com/axolync/android/server/LocalHttpServer.kt").readText()
 
         assertTrue(source.contains("\"runtime\": \"android-wrapper\""))
-        assertTrue(source.contains("val lyricflowPythonProcessSupported = false"))
+        assertTrue(source.contains("val lyricflowPythonProcessSupported = true"))
         assertTrue(source.contains("\"pythonProcessSupported\": \$lyricflowPythonProcessSupported"))
-        assertTrue(source.contains("\"launchAttempted\": false"))
-        assertTrue(source.contains("\"launchSucceeded\": false"))
-        assertTrue(source.contains("\"executionMode\": \"android-local-lrclib-fallback\""))
+        assertTrue(source.contains("\"launchAttempted\": \${lyricflowRuntimeStatus.startupAttempted}"))
+        assertTrue(source.contains("\"launchSucceeded\": \${lyricflowRuntimeStatus.startupSucceeded}"))
+        assertTrue(source.contains("\"executionMode\": \"android-embedded-python\""))
+        assertTrue(source.contains("runtimeBackendStatusProvider"))
     }
 }

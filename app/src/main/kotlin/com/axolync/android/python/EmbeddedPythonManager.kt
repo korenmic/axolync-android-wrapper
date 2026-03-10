@@ -7,13 +7,18 @@ import com.chaquo.python.android.AndroidPlatform
 
 class EmbeddedPythonManager internal constructor(
     private val appContext: Context,
-    private val launcher: PythonRuntimeLauncher = ChaquopyPythonRuntimeLauncher
+    private val launcher: PythonRuntimeLauncher = ChaquopyPythonRuntimeLauncher,
+    private val healthProbe: PythonHealthProbe = DefaultPythonHealthProbe
 ) {
 
     interface PythonRuntimeLauncher {
         fun isStarted(): Boolean
         fun start(context: Context)
         fun getInstance(): Any
+    }
+
+    interface PythonHealthProbe {
+        fun run(pythonRuntime: Any): EmbeddedPythonRuntimeStatus
     }
 
     private object ChaquopyPythonRuntimeLauncher : PythonRuntimeLauncher {
@@ -24,6 +29,39 @@ class EmbeddedPythonManager internal constructor(
         }
 
         override fun getInstance(): Any = Python.getInstance()
+    }
+
+    private object DefaultPythonHealthProbe : PythonHealthProbe {
+        override fun run(pythonRuntime: Any): EmbeddedPythonRuntimeStatus {
+            val python = pythonRuntime as? Python
+                ?: return EmbeddedPythonRuntimeStatus(
+                    criticalImportsSucceeded = false,
+                    healthCheckSucceeded = false,
+                    health = "failed",
+                    startupFailureStage = "health-check",
+                    startupFailureMessage = "Python runtime instance unavailable"
+                )
+
+            return try {
+                python.getModule("axolync_lyricflow_backend")
+                python.getModule("axolync_android_bridge")
+                val bridgeModule = python.getModule("axolync_android_bridge.lyricflow_bridge")
+                bridgeModule.callAttr("entrypoint_placeholder")
+                EmbeddedPythonRuntimeStatus(
+                    criticalImportsSucceeded = true,
+                    healthCheckSucceeded = true,
+                    health = "ok"
+                )
+            } catch (error: Exception) {
+                EmbeddedPythonRuntimeStatus(
+                    criticalImportsSucceeded = false,
+                    healthCheckSucceeded = false,
+                    health = "failed",
+                    startupFailureStage = "health-check",
+                    startupFailureMessage = error.message ?: error.javaClass.simpleName
+                )
+            }
+        }
     }
 
     @Volatile
@@ -61,7 +99,8 @@ class EmbeddedPythonManager internal constructor(
                 startupSucceeded = false,
                 startupFailureStage = "start",
                 startupFailureMessage = error.message ?: error.javaClass.simpleName,
-                reusedExistingRuntime = reusedExistingRuntime
+                reusedExistingRuntime = reusedExistingRuntime,
+                health = "failed"
             )
             Log.e(TAG, "Embedded Python runtime failed to start", error)
             return status
@@ -74,7 +113,8 @@ class EmbeddedPythonManager internal constructor(
                 startupSucceeded = true,
                 startupFailureStage = null,
                 startupFailureMessage = null,
-                reusedExistingRuntime = reusedExistingRuntime
+                reusedExistingRuntime = reusedExistingRuntime,
+                health = "started"
             )
             Log.i(TAG, "Embedded Python runtime is ready")
             status
@@ -84,11 +124,38 @@ class EmbeddedPythonManager internal constructor(
                 startupSucceeded = false,
                 startupFailureStage = "get-instance",
                 startupFailureMessage = error.message ?: error.javaClass.simpleName,
-                reusedExistingRuntime = reusedExistingRuntime
+                reusedExistingRuntime = reusedExistingRuntime,
+                health = "failed"
             )
             Log.e(TAG, "Embedded Python runtime failed after start during instance acquisition", error)
             status
         }
+    }
+
+    fun runSelfTest(): EmbeddedPythonRuntimeStatus = synchronized(this) {
+        val startupStatus = startIfNeeded()
+        if (!startupStatus.startupSucceeded || pythonRuntime == null) {
+            return status
+        }
+
+        val probeStatus = healthProbe.run(pythonRuntime as Any)
+        status = status.copy(
+            startupFailureStage = probeStatus.startupFailureStage,
+            startupFailureMessage = probeStatus.startupFailureMessage,
+            criticalImportsSucceeded = probeStatus.criticalImportsSucceeded,
+            healthCheckSucceeded = probeStatus.healthCheckSucceeded,
+            health = probeStatus.health
+        )
+
+        if (status.health == "ok") {
+            Log.i(TAG, "Embedded Python runtime health check passed")
+        } else {
+            Log.e(
+                TAG,
+                "Embedded Python runtime health check failed at ${status.startupFailureStage}: ${status.startupFailureMessage}"
+            )
+        }
+        return status
     }
 
     fun getStatus(): EmbeddedPythonRuntimeStatus = status

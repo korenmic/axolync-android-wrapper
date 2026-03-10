@@ -3,6 +3,8 @@ package com.axolync.android.server
 import android.content.Context
 import android.content.res.AssetManager
 import android.util.Log
+import com.axolync.android.python.EmbeddedPythonManager
+import com.axolync.android.python.EmbeddedPythonRuntimeStatus
 import fi.iki.elonen.NanoHTTPD
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
@@ -21,7 +23,10 @@ import org.json.JSONTokener
  */
 class LocalHttpServer(
     private val context: Context,
-    private val port: Int = 0 // 0 = auto-assign
+    private val port: Int = 0, // 0 = auto-assign
+    private val runtimeBackendStatusProvider: () -> EmbeddedPythonRuntimeStatus = {
+        EmbeddedPythonManager.getInstance(context).runSelfTest()
+    }
 ) : NanoHTTPD("127.0.0.1", port) {
 
     private data class ResolvedAsset(val requestPath: String, val assetPath: String, val mimeType: String)
@@ -199,16 +204,32 @@ class LocalHttpServer(
     }
 
     private fun serveRuntimeBackendStatus(session: IHTTPSession): Response {
-        val lyricflowPythonProcessSupported = false
+        val lyricflowRuntimeStatus = runtimeBackendStatusProvider()
+        val lyricflowPythonProcessSupported = true
+        if (lyricflowRuntimeStatus.health == "ok") {
+            Log.i(
+                TAG,
+                "Embedded Python runtime backend status healthy attempted=${lyricflowRuntimeStatus.startupAttempted} reused=${lyricflowRuntimeStatus.reusedExistingRuntime}"
+            )
+        } else {
+            Log.e(
+                TAG,
+                "Embedded Python runtime backend status unhealthy stage=${lyricflowRuntimeStatus.startupFailureStage} message=${lyricflowRuntimeStatus.startupFailureMessage}"
+            )
+        }
         val payload = """
             {
               "runtime": "android-wrapper",
               "lyricflow": {
                 "pythonProcessSupported": $lyricflowPythonProcessSupported,
-                "launchAttempted": false,
-                "launchSucceeded": false,
-                "health": "unsupported",
-                "executionMode": "android-local-lrclib-fallback"
+                "launchAttempted": ${lyricflowRuntimeStatus.startupAttempted},
+                "launchSucceeded": ${lyricflowRuntimeStatus.startupSucceeded},
+                "startupFailureStage": ${JSONObject.quote(lyricflowRuntimeStatus.startupFailureStage)},
+                "startupFailureMessage": ${JSONObject.quote(lyricflowRuntimeStatus.startupFailureMessage)},
+                "criticalImportsSucceeded": ${lyricflowRuntimeStatus.criticalImportsSucceeded ?: JSONObject.NULL},
+                "healthCheckSucceeded": ${lyricflowRuntimeStatus.healthCheckSucceeded ?: JSONObject.NULL},
+                "health": ${JSONObject.quote(lyricflowRuntimeStatus.health)},
+                "executionMode": "android-embedded-python"
               }
             }
         """.trimIndent()
