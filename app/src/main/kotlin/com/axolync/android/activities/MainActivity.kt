@@ -88,6 +88,52 @@ class MainActivity : AppCompatActivity() {
         )
     }
 
+    private fun androidTouchSuppressionMode(): String =
+        when (BuildConfig.TOUCH_SUPPRESSION_MODE.trim().lowercase()) {
+            "off" -> "off"
+            else -> "full"
+        }
+
+    private fun buildWrappedRuntimeBootstrapScript(): String {
+        val suppressionMode = androidTouchSuppressionMode()
+        val suppressionScript = if (suppressionMode == "off") {
+            """
+                      document.documentElement.style.overscrollBehavior = '';
+                      document.body.style.overscrollBehavior = '';
+                      document.body.style.touchAction = '';
+                      document.documentElement.style.webkitUserSelect = '';
+                      document.body.style.webkitUserSelect = '';
+                      document.body.style.userSelect = '';
+                      document.body.style.webkitTouchCallout = '';
+            """.trimIndent()
+        } else {
+            """
+                      viewport.setAttribute('content', 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover');
+                      document.documentElement.style.overscrollBehavior = 'none';
+                      document.body.style.overscrollBehavior = 'none';
+                      document.body.style.touchAction = 'none';
+                      document.documentElement.style.webkitUserSelect = 'none';
+                      document.body.style.webkitUserSelect = 'none';
+                      document.body.style.userSelect = 'none';
+                      document.body.style.webkitTouchCallout = 'none';
+            """.trimIndent()
+        }
+        return """
+            (function () {
+              document.body.dataset.platform = 'android-wrapper';
+              document.body.dataset.touchSuppressionMode = '${suppressionMode}';
+              var viewport = document.querySelector('meta[name="viewport"]');
+              if (!viewport) {
+                viewport = document.createElement('meta');
+                viewport.setAttribute('name', 'viewport');
+                document.head.appendChild(viewport);
+              }
+              viewport.setAttribute('content', 'width=device-width, initial-scale=1, viewport-fit=cover');
+              ${suppressionScript}
+            })();
+        """.trimIndent()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -407,25 +453,7 @@ class MainActivity : AppCompatActivity() {
 
             override fun onPageFinished(view: WebView, url: String) {
                 super.onPageFinished(view, url)
-                val js = """
-                    (function () {
-                      document.body.dataset.platform = 'android-wrapper';
-                      var viewport = document.querySelector('meta[name="viewport"]');
-                      if (!viewport) {
-                        viewport = document.createElement('meta');
-                        viewport.setAttribute('name', 'viewport');
-                        document.head.appendChild(viewport);
-                      }
-                      viewport.setAttribute('content', 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover');
-                      document.documentElement.style.overscrollBehavior = 'none';
-                      document.body.style.overscrollBehavior = 'none';
-                      document.body.style.touchAction = 'none';
-                      document.documentElement.style.webkitUserSelect = 'none';
-                      document.body.style.webkitUserSelect = 'none';
-                      document.body.style.userSelect = 'none';
-                      document.body.style.webkitTouchCallout = 'none';
-                    })();
-                """.trimIndent()
+                val js = buildWrappedRuntimeBootstrapScript()
                 view.evaluateJavascript(js, null)
             }
         }

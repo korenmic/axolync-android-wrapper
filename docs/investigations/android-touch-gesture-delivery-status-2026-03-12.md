@@ -102,6 +102,17 @@ Without that isolation, every new patch risks repeating the same failure mode:
 - no proof why
 - another guess-driven rewrite
 
+## Permanent A/B formulation
+
+This is the current preferred next step and should be preserved explicitly:
+
+1. add one Android-wrapper-controlled flag that disables the injected browser/WebView suppression bundle
+2. build one APK with the flag flipped
+3. if touch returns, the suppression bundle is confirmed as the blocker
+4. re-enable protections one piece at a time until the minimal safe subset is found
+
+This is a better use of time than another blind rewrite because it isolates the strongest remaining suspect first.
+
 ## Rough iteration count
 
 For the exact Android touch-parity issue, the project has already spent multiple real passes on:

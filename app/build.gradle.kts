@@ -15,6 +15,14 @@ val lyricflowBackendSourceDir = lyricflowBackendRoot.map { File(it).resolve("src
 val lyricflowAndroidBridgeSourceDir = lyricflowBackendRoot.map { File(it).resolve("src/axolync_android_bridge") }
 val lyricflowAndroidRequirementsFile = lyricflowBackendRoot.map { File(it).resolve("requirements-android.txt") }
 val lyricflowRuntimeConfigFile = lyricflowBackendRoot.map { File(it).resolve("../config/providers.yaml") }
+val androidTouchSuppressionMode = providers.environmentVariable("AXOLYNC_ANDROID_TOUCH_SUPPRESSION_MODE")
+    .orElse("full")
+    .map { raw ->
+        when (raw.trim().lowercase()) {
+            "off", "disabled", "none" -> "off"
+            else -> "full"
+        }
+    }
 
 android {
     namespace = "com.axolync.android"
@@ -30,6 +38,7 @@ android {
         targetSdk = 34
         versionCode = 6
         versionName = "1.4.0-beta.2"
+        buildConfigField("String", "TOUCH_SUPPRESSION_MODE", "\"${androidTouchSuppressionMode.get()}\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Android Touch Suppression Flag A/B Plan</title>
+  <style>
+    :root {
+      --bg: #08101f;
+      --panel: #0f1a33;
+      --line: #23345f;
+      --text: #e8efff;
+      --muted: #9fb3da;
+      --accent: #79c0ff;
+      --warn: #ffcf70;
+      --good: #7ee787;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font: 16px/1.5 system-ui, sans-serif;
+      background: linear-gradient(180deg, #060b15 0%, var(--bg) 100%);
+      color: var(--text);
+    }
+    main {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 32px 20px 72px;
+    }
+    section {
+      margin-bottom: 18px;
+      padding: 18px 20px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: rgba(15, 26, 51, 0.92);
+    }
+    h1, h2 { margin: 0 0 10px; }
+    h1 { font-size: 30px; }
+    h2 { font-size: 18px; color: var(--accent); }
+    p, li { color: var(--muted); }
+    code {
+      padding: 2px 6px;
+      border-radius: 6px;
+      background: rgba(121, 192, 255, 0.12);
+      color: var(--text);
+    }
+    .modes {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 14px;
+    }
+    .mode {
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: rgba(8, 16, 31, 0.65);
+    }
+    .mode strong { display: block; margin-bottom: 8px; }
+    .full strong { color: var(--warn); }
+    .off strong { color: var(--good); }
+  </style>
+</head>
+<body>
+  <main>
+    <section>
+      <h1>Android Touch Suppression Flag A/B Plan</h1>
+      <p>Add one explicit Android build/runtime switch so touch debugging stops depending on broad rewrites.</p>
+    </section>
+
+    <section>
+      <h2>Flag</h2>
+      <p><code>AXOLYNC_ANDROID_TOUCH_SUPPRESSION_MODE</code></p>
+    </section>
+
+    <section>
+      <h2>Modes</h2>
+      <div class="modes">
+        <div class="mode full">
+          <strong>full</strong>
+          <p>Keep the current Android wrapped-WebView suppression bundle: viewport lock, <code>user-scalable=no</code>, <code>touchAction = 'none'</code>, and selection/touch-callout suppression.</p>
+        </div>
+        <div class="mode off">
+          <strong>off</strong>
+          <p>Disable the injected browser/WebView suppression bundle for the A/B investigation.</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Why This Exists</h2>
+      <p>The strongest current suspect is the suppression bundle, not the shared lyric interaction model. Without an explicit switch, every Android touch pass mixes native delivery changes, browser receipt changes, and WebView suppression changes.</p>
+    </section>
+
+    <section>
+      <h2>Preferred Sequence</h2>
+      <ol>
+        <li>Build one APK with <code>AXOLYNC_ANDROID_TOUCH_SUPPRESSION_MODE=off</code>.</li>
+        <li>Test drag and pinch in the lyric scene.</li>
+        <li>If touch returns, treat the suppression bundle as the confirmed culprit.</li>
+        <li>Re-enable protections one piece at a time until the minimal safe subset is found.</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>Success Criteria</h2>
+      <ol>
+        <li>Default APKs still preserve current behavior under <code>full</code>.</li>
+        <li><code>off</code> materially changes the injected wrapper script.</li>
+        <li>The difference is visible in tests and in real APK behavior.</li>
+        <li>The investigation can proceed without another broad rewrite.</li>
+      </ol>
+    </section>
+  </main>
+</body>
+</html>
