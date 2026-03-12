@@ -48,3 +48,4 @@ node_modules/
 
 # Generated physical-device validation outputs
 tests/output/
+.env
