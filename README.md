@@ -1,5 +1,15 @@
 # Axolync Android Wrapper
 
+## Migration Status
+
+This README describes the embedded localhost + `WebView` Android wrapper that is being displaced by Migration 05.
+
+- Active migration target: Capacitor-based Android host
+- Legacy reference doc: [docs/legacy/embedded-wrapper-reference.md](docs/legacy/embedded-wrapper-reference.md)
+- Legacy state label: `archived-reference`
+
+Until the Capacitor reset is fully landed, this repository may temporarily contain transitional code. Treat the embedded-server architecture documented below as the preserved legacy reference, not as the intended long-term default.
+
 Native Android shell for the Axolync web app.
 
 The wrapper starts an embedded localhost HTTP server inside the app process, then loads the web UI in `WebView` from `http://localhost:<port>/index.html`.
