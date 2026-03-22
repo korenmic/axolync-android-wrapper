@@ -39,6 +39,7 @@ local.properties
 
 # Node modules (if building axolync-browser locally)
 node_modules/
+app/src/main/assets/public/
 
 # Submodule/symlink - axolync-browser
 /axolync-browser/
