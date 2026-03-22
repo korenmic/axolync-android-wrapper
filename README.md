@@ -2,60 +2,51 @@
 
 ## Migration Status
 
-This README describes the embedded localhost + `WebView` Android wrapper that is being displaced by Migration 05.
+This README describes the active Capacitor-based Android host introduced by Migration 05.
 
 - Active migration target: Capacitor-based Android host
 - Legacy reference doc: [docs/legacy/embedded-wrapper-reference.md](docs/legacy/embedded-wrapper-reference.md)
 - Legacy state label: `archived-reference`
 
-Until the Capacitor reset is fully landed, this repository may temporarily contain transitional code. Treat the embedded-server architecture documented below as the preserved legacy reference, not as the intended long-term default.
+Treat the embedded-server architecture as archived legacy behavior. The active host path in this repository is now the thin Capacitor shell described below.
 
 Native Android shell for the Axolync web app.
-
-The wrapper starts an embedded localhost HTTP server inside the app process, then loads the web UI in `WebView` from `http://localhost:<port>/index.html`.
 
 ## What This Project Does
 
 - Packages `axolync-browser` web assets into an APK.
-- Runs a local in-app HTTP server (`NanoHTTPD`) to serve those assets.
-- Uses `WebView` for rendering + native bridge for Android integrations (permissions, audio, lifecycle).
+- Stages browser build artifacts into Capacitor public assets.
+- Uses a thin Capacitor `BridgeActivity` host instead of a custom localhost server or Kotlin-owned product runtime.
+- Defers Android-native integrations that need custom native plugins until later bridge-plugin work lands.
 - Preserves Axolync state-machine/UI behavior from the web app baseline.
 
 ## Runtime Flow
 
-1. `AxolyncApplication` starts `ServerManager` asynchronously.
-2. `SplashActivity` shows full-screen splash art while server reaches READY (with timeout guard).
-3. `MainActivity` loads WebView from localhost URL.
-4. Web app JS runs from served assets (not `file://`).
+1. Builder/browser outputs are staged into `app/src/main/assets/public`.
+2. `MainActivity` launches as a Capacitor `BridgeActivity`.
+3. Capacitor loads the staged web app assets directly from the packaged host shell.
+4. Browser JS runs in the mobile host baseline without requiring `AndroidBridge`, a localhost server, or embedded Python in the active path.
 
 ## Project Structure
 
 - `app/src/main/kotlin/com/axolync/android/`
-  - `AxolyncApplication.kt` - app entry, server bootstrap
-  - `activities/`
-    - `SplashActivity.kt` - fullscreen splash + server readiness gate
-    - `MainActivity.kt` - WebView host + bridge wiring
-  - `server/`
-    - `ServerManager.kt` - app-scope server lifecycle/state
-    - `LocalHttpServer.kt` - localhost asset server
-  - `bridge/` - JS bridge between Android and web app
-  - `services/` - audio capture, permission handling, lifecycle coordination
-  - `utils/` - plugin/network helpers
+  - `activities/MainActivity.kt` - thin Capacitor host activity
 - `app/src/main/res/`
-  - `layout/activity_splash.xml` - fullscreen splash layout
-  - `drawable-port/` + `drawable-land/` - orientation-specific splash art
-  - `xml/network_security_config.xml` - cleartext policy (localhost-only)
-- `app/src/main/assets/axolync-browser/` - copied web assets used by server
+  - `xml/config.xml` - Capacitor host config
+  - `xml/file_paths.xml` - file-provider compatibility config
+- `app/src/main/assets/public/` - staged browser build used by the Capacitor host
+- `app/src/main/assets/capacitor/` - checked-in Capacitor asset metadata
+- `scripts/stage-browser-assets.mjs` - stages browser outputs into Capacitor assets
 - `.kiro/specs/android-apk-wrapper/` - requirements/design/tasks
 
 ## Build and Test
 
 ```bash
-# Compile Kotlin
-./gradlew :app:compileDebugKotlin
+# Install Capacitor dependencies
+npm ci --no-fund --no-audit
 
 # Unit tests
-./gradlew :app:testDebugUnitTest
+./gradlew :app:testNormalDebugUnitTest
 
 # Build both normal + demo debug APKs
 ./gradlew :app:assembleNormalDebug :app:assembleDemoDebug
@@ -67,25 +58,15 @@ APK output:
 
 ## Local Parity Server (same serving style as embedded Android server)
 
-To debug the same static asset behavior on desktop (without Vite), run:
-
-```bash
-node scripts/serve-android-assets.mjs --port=4173
-```
-
-Then open:
-
-```text
-http://127.0.0.1:4173/index.html
-```
+To debug the staged browser output on desktop, use the browser repo or the builder report artifacts directly. The active Android host no longer depends on a localhost asset server inside the APK.
 
 ## Asset Sync From axolync-browser
 
-`preBuild` depends on `copyAxolyncBrowserAssets`.
+`preBuild` depends on `stageCapacitorBrowserAssets`.
 It copies:
-- `axolync-browser/dist/**`
-- `axolync-browser/index.html` (rewritten from `/src/main.ts` to `/main.js` for static runtime)
-into `app/src/main/assets/axolync-browser/`.
+- builder/browser normal output into `app/src/main/assets/public/`
+- builder/browser demo assets into `app/src/main/assets/public/demo/assets/`
+- Capacitor compatibility stubs (`cordova.js`, `cordova_plugins.js`) when missing
 
 ## Permissions
 
@@ -95,9 +76,9 @@ into `app/src/main/assets/axolync-browser/`.
 
 ## Important Notes
 
-- Wrapper runtime is `http://localhost:<port>/...` by design.
-- If UI looks like static HTML (buttons not behaving), check JS module path serving in `LocalHttpServer` first.
-- Splash rendering is custom activity-based (full-screen image), not Android 12 icon-style splash.
+- Phase 1 intentionally drops native-only capabilities that require custom bridge plugins.
+- SongSense notification-reader behavior is deferred in the active Capacitor baseline.
+- If mobile behavior differs from the browser baseline, treat that as a host capability gap to be reintroduced explicitly later, not as a reason to restore hidden localhost/native-bridge assumptions.
 
 ## AI Contributor Docs
 
