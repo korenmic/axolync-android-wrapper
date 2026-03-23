@@ -1,5 +1,13 @@
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const DEBUG_DEMO_ENTRIES = [
+  'assets/public/demo/player.html',
+  'assets/public/demo/plugins/demo-lyricflow.js',
+  'assets/public/demo/assets/demo_track.wav',
+  'assets/public/demo/assets/house_of_the_rising_sun_instrumental.ogg',
+];
 
 function readZipEntry(apkPath, entryPath) {
   return execFileSync('unzip', ['-p', apkPath, entryPath], {
@@ -30,6 +38,23 @@ function listZipEntries(apkPath) {
 function detectExpectedRuntimeProfile(apkPath) {
   const lower = path.basename(apkPath).toLowerCase();
   return lower.includes('release') ? 'release' : 'debug';
+}
+
+export function assertDemoAssetState(zipEntries, shouldIncludeDemoAssets, resolved) {
+  const hasAnyDemoTreeEntry = zipEntries.some((entry) => entry.startsWith('assets/public/demo/'));
+  for (const expectedEntry of DEBUG_DEMO_ENTRIES) {
+    const hasEntry = zipEntries.includes(expectedEntry);
+    if (shouldIncludeDemoAssets && !hasEntry) {
+      throw new Error(`APK is missing required demo asset in debug profile: ${resolved} (${expectedEntry})`);
+    }
+    if (!shouldIncludeDemoAssets && hasEntry) {
+      throw new Error(`APK unexpectedly ships demo asset in release profile: ${resolved} (${expectedEntry})`);
+    }
+  }
+
+  if (!shouldIncludeDemoAssets && hasAnyDemoTreeEntry) {
+    throw new Error(`APK unexpectedly ships demo asset tree in release profile: ${resolved}`);
+  }
 }
 
 function verifyApk(apkPath) {
@@ -69,29 +94,23 @@ function verifyApk(apkPath) {
     `APK is missing inlined direct LRCLIB helper: ${resolved}`,
   );
 
-  const hasDemoPlayer = zipEntries.includes('assets/public/demo/player.html');
-  const hasDemoLyricflow = zipEntries.includes('assets/public/demo/plugins/demo-lyricflow.js');
   const hasLegacyAssetTree = zipEntries.some((entry) => entry.startsWith('assets/axolync-browser/'));
 
   if (hasLegacyAssetTree) {
     throw new Error(`APK unexpectedly ships legacy axolync-browser asset tree: ${resolved}`);
   }
-  if (shouldIncludeDemoAssets) {
-    if (!hasDemoPlayer || !hasDemoLyricflow) {
-      throw new Error(`APK is missing staged demo assets in debug profile: ${resolved}`);
-    }
-  } else if (hasDemoPlayer || hasDemoLyricflow) {
-    throw new Error(`APK unexpectedly ships demo assets in release profile: ${resolved}`);
-  }
+  assertDemoAssetState(zipEntries, shouldIncludeDemoAssets, resolved);
 
   console.log(`[verify-apk-assets] ok ${resolved}`);
 }
 
-const apkPaths = process.argv.slice(2);
-if (apkPaths.length === 0) {
-  throw new Error('Usage: node scripts/verify-apk-assets.mjs <apk-path> [more-apk-paths...]');
-}
+if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url))) {
+  const apkPaths = process.argv.slice(2);
+  if (apkPaths.length === 0) {
+    throw new Error('Usage: node scripts/verify-apk-assets.mjs <apk-path> [more-apk-paths...]');
+  }
 
-for (const apkPath of apkPaths) {
-  verifyApk(apkPath);
+  for (const apkPath of apkPaths) {
+    verifyApk(apkPath);
+  }
 }
