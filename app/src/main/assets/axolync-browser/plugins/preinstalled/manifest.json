@@ -7,7 +7,7 @@
       "type": "SongSense",
       "url": "/plugins/preinstalled/songsense-bridge.zip",
       "description": "Preinstalled JS addon package for SongSense adapters with native and remote runtime placements.",
-      "contentHash": "sha256:b122e799bf85b05cd216968ac8ea00171094974e4204534427f0178256907e1e"
+      "contentHash": "sha256:4cbd90ac39e68b8c445debddfa4caffe3922b24ffbdb5e8e9d5ba75c067c9dd1"
     },
     {
       "id": "syncengine-bridge",
@@ -16,7 +16,7 @@
       "type": "SyncEngine",
       "url": "/plugins/preinstalled/syncengine-bridge.zip",
       "description": "Preinstalled JS addon package for SyncEngine adapters with remote runtime placement.",
-      "contentHash": "sha256:9e8fea2d93dc67723f96739caa95b4d366426663d32c70b3fad1ada2c6db9dc1"
+      "contentHash": "sha256:aec01e1deb6dc2dfea12f72c638e39e334e828a110a40ee7e3bf0866c934a44c"
     },
     {
       "id": "lyricflow-bridge",
@@ -25,7 +25,7 @@
       "type": "LyricFlow",
       "url": "/plugins/preinstalled/lyricflow-bridge.zip",
       "description": "Preinstalled JS addon package for LyricFlow adapters with remote runtime placement.",
-      "contentHash": "sha256:b2975e0aa0bd9e0d6c17c9ecb98aff30fcf8e3edc625d9eda443ad26f59c2251"
+      "contentHash": "sha256:5998260dbddb37fa69353a1f9a2c90cbb38fc62a0b828306fb24421ce8bf1be4"
     }
   ]
 }

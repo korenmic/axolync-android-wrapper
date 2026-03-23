@@ -14,6 +14,16 @@ function normalizeRuntimeProfile(rawValue, fallbackValue = 'debug') {
   return fallbackValue;
 }
 
+function normalizeBoolean(rawValue, fallbackValue) {
+  if (rawValue === undefined || rawValue === null || rawValue === '') {
+    return fallbackValue;
+  }
+  const normalized = String(rawValue).trim().toLowerCase();
+  if (['1', 'true', 'yes', 'on'].includes(normalized)) return true;
+  if (['0', 'false', 'no', 'off'].includes(normalized)) return false;
+  return fallbackValue;
+}
+
 function buildRuntimeProfileSnippet(runtimeProfile) {
   return `<script ${RUNTIME_PROFILE_SNIPPET_MARKER}>window.__AXOLYNC_RUNTIME_PROFILE = ${JSON.stringify(runtimeProfile)};</script>`;
 }
@@ -84,6 +94,10 @@ export function resolveAndroidRuntimeProfile() {
   return normalizeRuntimeProfile(process.env.AXOLYNC_ANDROID_RUNTIME_PROFILE);
 }
 
+export function resolveAndroidIncludeDemoAssets(runtimeProfile = resolveAndroidRuntimeProfile()) {
+  return normalizeBoolean(process.env.AXOLYNC_ANDROID_INCLUDE_DEMO_ASSETS, runtimeProfile === 'debug');
+}
+
 function ensureRequiredBrowserFiles(sourceRoot) {
   if (!fs.existsSync(sourceRoot)) {
     throw new Error(`Browser source root not found: ${sourceRoot}`);
@@ -100,6 +114,7 @@ export function stageBrowserAssets(options = {}) {
   const demoPluginsRoot = options.demoPluginsRoot ?? resolveDemoPluginsRoot();
   const demoPlayerHtml = options.demoPlayerHtml ?? resolveDemoPlayerHtml();
   const runtimeProfile = options.runtimeProfile ?? resolveAndroidRuntimeProfile();
+  const includeDemoAssets = options.includeDemoAssets ?? resolveAndroidIncludeDemoAssets(runtimeProfile);
 
   ensureRequiredBrowserFiles(sourceRoot);
 
@@ -113,19 +128,19 @@ export function stageBrowserAssets(options = {}) {
     'utf8',
   );
 
-  if (demoAssetsRoot) {
+  if (includeDemoAssets && demoAssetsRoot) {
     const demoTarget = path.join(targetPublicDir, 'demo', 'assets');
     fs.mkdirSync(demoTarget, { recursive: true });
     fs.cpSync(demoAssetsRoot, demoTarget, { recursive: true });
   }
 
-  if (demoPluginsRoot) {
+  if (includeDemoAssets && demoPluginsRoot) {
     const demoTarget = path.join(targetPublicDir, 'demo', 'plugins');
     fs.mkdirSync(demoTarget, { recursive: true });
     fs.cpSync(demoPluginsRoot, demoTarget, { recursive: true });
   }
 
-  if (demoPlayerHtml) {
+  if (includeDemoAssets && demoPlayerHtml) {
     const playerTarget = path.join(targetPublicDir, 'demo', 'player.html');
     fs.mkdirSync(path.dirname(playerTarget), { recursive: true });
     fs.copyFileSync(demoPlayerHtml, playerTarget);
@@ -145,6 +160,7 @@ export function stageBrowserAssets(options = {}) {
     demoPluginsRoot,
     demoPlayerHtml,
     runtimeProfile,
+    includeDemoAssets,
   };
 }
 

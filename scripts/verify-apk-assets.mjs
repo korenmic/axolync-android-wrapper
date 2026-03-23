@@ -20,16 +20,31 @@ function assertExcludes(haystack, needle, message) {
   }
 }
 
+function listZipEntries(apkPath) {
+  return execFileSync('unzip', ['-Z1', apkPath], {
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  }).split('\n').map((line) => line.trim()).filter(Boolean);
+}
+
+function detectExpectedRuntimeProfile(apkPath) {
+  const lower = path.basename(apkPath).toLowerCase();
+  return lower.includes('release') ? 'release' : 'debug';
+}
+
 function verifyApk(apkPath) {
   const resolved = path.resolve(apkPath);
+  const expectedRuntimeProfile = detectExpectedRuntimeProfile(resolved);
+  const shouldIncludeDemoAssets = expectedRuntimeProfile === 'debug';
   const indexHtml = readZipEntry(resolved, 'assets/public/index.html');
   const syncWorker = readZipEntry(resolved, 'assets/public/workers/syncengineBridgeWorker.js');
   const lyricWorker = readZipEntry(resolved, 'assets/public/workers/lyricflowBridgeWorker.js');
+  const zipEntries = listZipEntries(resolved);
 
   assertIncludes(
     indexHtml,
-    'window.__AXOLYNC_RUNTIME_PROFILE = "debug";',
-    `APK is missing staged debug runtime profile override: ${resolved}`,
+    `window.__AXOLYNC_RUNTIME_PROFILE = "${expectedRuntimeProfile}";`,
+    `APK is missing staged ${expectedRuntimeProfile} runtime profile override: ${resolved}`,
   );
 
   assertExcludes(
@@ -53,6 +68,16 @@ function verifyApk(apkPath) {
     'function fetchDirectLrcLibLyrics(',
     `APK is missing inlined direct LRCLIB helper: ${resolved}`,
   );
+
+  const hasDemoPlayer = zipEntries.includes('assets/public/demo/player.html');
+  const hasDemoLyricflow = zipEntries.includes('assets/public/demo/plugins/demo-lyricflow.js');
+  if (shouldIncludeDemoAssets) {
+    if (!hasDemoPlayer || !hasDemoLyricflow) {
+      throw new Error(`APK is missing staged demo assets in debug profile: ${resolved}`);
+    }
+  } else if (hasDemoPlayer || hasDemoLyricflow) {
+    throw new Error(`APK unexpectedly ships demo assets in release profile: ${resolved}`);
+  }
 
   console.log(`[verify-apk-assets] ok ${resolved}`);
 }
