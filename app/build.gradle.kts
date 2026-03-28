@@ -7,6 +7,15 @@ android {
     namespace = "com.axolync.android"
     compileSdk = 34
 
+    signingConfigs {
+        create("axolyncTrackedDebug") {
+            storeFile = rootProject.file("signing/axolync-debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     defaultConfig {
         applicationId = "com.axolync.android"
         minSdk = 24
@@ -35,6 +44,9 @@ android {
     }
 
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("axolyncTrackedDebug")
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(

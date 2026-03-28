@@ -33,6 +33,8 @@ local.properties
 # Keystore files
 *.jks
 *.keystore
+!signing/
+!signing/axolync-debug.keystore
 
 # Android Profiling
 *.hprof

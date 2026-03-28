@@ -56,6 +56,12 @@ APK output:
 - `app/build/outputs/apk/normal/debug/app-normal-debug.apk`
 - `app/build/outputs/apk/demo/debug/app-demo-debug.apk`
 
+## Debug Signing Stability
+
+- Debug builds use the tracked keystore at `signing/axolync-debug.keystore`.
+- This keeps debug APK upgrade lineage stable across machines instead of falling back to each host's local `~/.android/debug.keystore`.
+- Release builds remain outside this debug-key path.
+
 ## Local Parity Server (same serving style as embedded Android server)
 
 To debug the staged browser output on desktop, use the browser repo or the builder report artifacts directly. The active Android host no longer depends on a localhost asset server inside the APK.
