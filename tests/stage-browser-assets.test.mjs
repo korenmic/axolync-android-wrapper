@@ -39,12 +39,14 @@ test('stageBrowserAssets copies demo plugins, demo player, and browser dist payl
 
   assert.equal(result.publicDir, publicDir);
   assert.equal(result.runtimeProfile, 'debug');
-  assert.equal(result.nativeStartupSplashVariant, 'artwork');
+  assert.equal(result.nativeStartupSplashVariant, 'layered');
+  assert.equal(result.nativeStartupSplashFitMode, 'contain');
   assert.equal(result.nativeStartupSplashMinDurationMs, 2200);
   const stagedDebugIndex = fs.readFileSync(path.join(publicDir, 'index.html'), 'utf8');
   assert.match(stagedDebugIndex, /window\.__AXOLYNC_RUNTIME_PROFILE = "debug"/);
   assert.match(stagedDebugIndex, /window\.__AXOLYNC_NATIVE_STARTUP_SPLASH_ENABLED = true/);
-  assert.match(stagedDebugIndex, /window\.__AXOLYNC_NATIVE_STARTUP_SPLASH_VARIANT = "artwork"/);
+  assert.match(stagedDebugIndex, /window\.__AXOLYNC_NATIVE_STARTUP_SPLASH_VARIANT = "layered"/);
+  assert.match(stagedDebugIndex, /window\.__AXOLYNC_NATIVE_STARTUP_SPLASH_FIT_MODE = "contain"/);
   assert.match(stagedDebugIndex, /window\.__AXOLYNC_NATIVE_STARTUP_SPLASH_MIN_DURATION_MS = 2200/);
   assert.equal(fs.readFileSync(path.join(publicDir, 'assets', 'main.js'), 'utf8'), 'console.log("browser");');
   assert.equal(fs.readFileSync(path.join(publicDir, 'demo', 'assets', 'house_of_the_rising_sun_instrumental.ogg'), 'utf8'), 'ogg');
@@ -92,9 +94,34 @@ test('stageBrowserAssets can stage a release payload without demo assets', () =>
   const stagedReleaseIndex = fs.readFileSync(path.join(publicDir, 'index.html'), 'utf8');
   assert.match(stagedReleaseIndex, /window\.__AXOLYNC_RUNTIME_PROFILE = "release"/);
   assert.match(stagedReleaseIndex, /window\.__AXOLYNC_NATIVE_STARTUP_SPLASH_ENABLED = true/);
-  assert.match(stagedReleaseIndex, /window\.__AXOLYNC_NATIVE_STARTUP_SPLASH_VARIANT = "artwork"/);
+  assert.match(stagedReleaseIndex, /window\.__AXOLYNC_NATIVE_STARTUP_SPLASH_VARIANT = "layered"/);
+  assert.match(stagedReleaseIndex, /window\.__AXOLYNC_NATIVE_STARTUP_SPLASH_FIT_MODE = "contain"/);
   assert.match(stagedReleaseIndex, /window\.__AXOLYNC_NATIVE_STARTUP_SPLASH_MIN_DURATION_MS = 2200/);
   assert.equal(fs.existsSync(path.join(publicDir, 'demo')), false);
+
+  fs.rmSync(tempRoot, { recursive: true, force: true });
+});
+
+test('stageBrowserAssets infers cover fit mode when artwork splash is requested without an explicit fit override', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'axolync-android-stage-assets-artwork-'));
+  const sourceRoot = path.join(tempRoot, 'browser-dist');
+  const publicDir = path.join(tempRoot, 'public');
+
+  writeFile(path.join(sourceRoot, 'index.html'), '<!doctype html><title>Axolync</title>');
+
+  const result = stageBrowserAssets({
+    sourceRoot,
+    publicDir,
+    runtimeProfile: 'debug',
+    includeDemoAssets: false,
+    nativeStartupSplashVariant: 'artwork',
+  });
+
+  assert.equal(result.nativeStartupSplashVariant, 'artwork');
+  assert.equal(result.nativeStartupSplashFitMode, 'cover');
+  const stagedIndex = fs.readFileSync(path.join(publicDir, 'index.html'), 'utf8');
+  assert.match(stagedIndex, /window\.__AXOLYNC_NATIVE_STARTUP_SPLASH_VARIANT = "artwork"/);
+  assert.match(stagedIndex, /window\.__AXOLYNC_NATIVE_STARTUP_SPLASH_FIT_MODE = "cover"/);
 
   fs.rmSync(tempRoot, { recursive: true, force: true });
 });

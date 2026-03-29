@@ -33,4 +33,14 @@ class MainActivityCapacitorHostTest {
         assertFalse(manifest.contains("AxolyncApplication"))
         assertFalse(manifest.contains("network_security_config"))
     }
+
+    @Test
+    fun `startup splash layout keeps a shared matte between backdrop and centered artwork`() {
+        val layout = repoFile("app/src/main/res/layout/activity_splash.xml").readText()
+        assertTrue(layout.contains("android:id=\"@+id/splash_foreground_group\""))
+        assertTrue(layout.contains("android:id=\"@+id/splash_image_foreground\""))
+        assertTrue(layout.contains("android:alpha=\"0.88\""))
+        assertTrue(layout.contains("android:background=\"#000000\""))
+        assertTrue(layout.contains("android:scaleType=\"fitCenter\""))
+    }
 }

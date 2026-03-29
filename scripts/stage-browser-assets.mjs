@@ -6,7 +6,8 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 const publicDir = path.join(repoRoot, 'app', 'src', 'main', 'assets', 'public');
 const RUNTIME_PROFILE_SNIPPET_MARKER = 'id="axolync-runtime-profile-override"';
 const NATIVE_STARTUP_SPLASH_SNIPPET_MARKER = 'id="axolync-native-startup-splash-override"';
-const DEFAULT_NATIVE_STARTUP_SPLASH_VARIANT = 'artwork';
+const DEFAULT_NATIVE_STARTUP_SPLASH_VARIANT = 'layered';
+const DEFAULT_NATIVE_STARTUP_SPLASH_FIT_MODE = 'contain';
 const DEFAULT_NATIVE_STARTUP_SPLASH_MIN_DURATION_MS = 2200;
 
 function normalizeRuntimeProfile(rawValue, fallbackValue = 'debug') {
@@ -32,6 +33,14 @@ function normalizePositiveInteger(rawValue, fallbackValue) {
   return Number.isFinite(normalized) && normalized > 0 ? normalized : fallbackValue;
 }
 
+function normalizeSplashVariant(rawValue, fallbackValue = DEFAULT_NATIVE_STARTUP_SPLASH_VARIANT) {
+  const normalized = String(rawValue ?? '').trim().toLowerCase();
+  if (normalized === 'icon' || normalized === 'compact') return 'icon';
+  if (normalized === 'layered' || normalized === 'android' || normalized === 'stacked') return 'layered';
+  if (normalized === 'artwork' || normalized === 'fullscreen' || normalized === 'full') return 'artwork';
+  return fallbackValue;
+}
+
 function buildRuntimeProfileSnippet(runtimeProfile) {
   return `<script ${RUNTIME_PROFILE_SNIPPET_MARKER}>window.__AXOLYNC_RUNTIME_PROFILE = ${JSON.stringify(runtimeProfile)};</script>`;
 }
@@ -39,9 +48,10 @@ function buildRuntimeProfileSnippet(runtimeProfile) {
 function buildNativeStartupSplashSnippet({
   enabled = true,
   variant = DEFAULT_NATIVE_STARTUP_SPLASH_VARIANT,
+  fitMode = DEFAULT_NATIVE_STARTUP_SPLASH_FIT_MODE,
   minDurationMs = DEFAULT_NATIVE_STARTUP_SPLASH_MIN_DURATION_MS,
 } = {}) {
-  return `<script ${NATIVE_STARTUP_SPLASH_SNIPPET_MARKER}>window.__AXOLYNC_NATIVE_STARTUP_SPLASH_ENABLED = ${enabled ? 'true' : 'false'}; window.__AXOLYNC_NATIVE_STARTUP_SPLASH_VARIANT = ${JSON.stringify(variant)}; window.__AXOLYNC_NATIVE_STARTUP_SPLASH_MIN_DURATION_MS = ${JSON.stringify(minDurationMs)};</script>`;
+  return `<script ${NATIVE_STARTUP_SPLASH_SNIPPET_MARKER}>window.__AXOLYNC_NATIVE_STARTUP_SPLASH_ENABLED = ${enabled ? 'true' : 'false'}; window.__AXOLYNC_NATIVE_STARTUP_SPLASH_VARIANT = ${JSON.stringify(variant)}; window.__AXOLYNC_NATIVE_STARTUP_SPLASH_FIT_MODE = ${JSON.stringify(fitMode)}; window.__AXOLYNC_NATIVE_STARTUP_SPLASH_MIN_DURATION_MS = ${JSON.stringify(minDurationMs)};</script>`;
 }
 
 function applyRuntimeProfileOverrideToHtml(html, runtimeProfile) {
@@ -65,9 +75,10 @@ function applyRuntimeProfileOverrideToHtml(html, runtimeProfile) {
 function applyNativeStartupSplashOverrideToHtml(html, {
   enabled = true,
   variant = DEFAULT_NATIVE_STARTUP_SPLASH_VARIANT,
+  fitMode = DEFAULT_NATIVE_STARTUP_SPLASH_FIT_MODE,
   minDurationMs = DEFAULT_NATIVE_STARTUP_SPLASH_MIN_DURATION_MS,
 } = {}) {
-  const snippet = buildNativeStartupSplashSnippet({ enabled, variant, minDurationMs });
+  const snippet = buildNativeStartupSplashSnippet({ enabled, variant, fitMode, minDurationMs });
   if (html.includes(NATIVE_STARTUP_SPLASH_SNIPPET_MARKER)) {
     return html.replace(
       /<script id="axolync-native-startup-splash-override">[\s\S]*?<\/script>/u,
@@ -137,7 +148,19 @@ export function resolveAndroidIncludeDemoAssets(runtimeProfile = resolveAndroidR
 }
 
 export function resolveAndroidNativeStartupSplashVariant() {
-  return String(process.env.AXOLYNC_ANDROID_NATIVE_STARTUP_SPLASH_VARIANT || DEFAULT_NATIVE_STARTUP_SPLASH_VARIANT).trim() || DEFAULT_NATIVE_STARTUP_SPLASH_VARIANT;
+  return normalizeSplashVariant(
+    process.env.AXOLYNC_ANDROID_NATIVE_STARTUP_SPLASH_VARIANT,
+    DEFAULT_NATIVE_STARTUP_SPLASH_VARIANT,
+  );
+}
+
+export function resolveAndroidNativeStartupSplashFitMode(variant = resolveAndroidNativeStartupSplashVariant()) {
+  const inferredFallback = variant === 'layered' ? 'contain' : 'cover';
+  const normalized = String(process.env.AXOLYNC_ANDROID_NATIVE_STARTUP_SPLASH_FIT_MODE || inferredFallback).trim().toLowerCase();
+  if (normalized === 'contain' || normalized === 'cover' || normalized === 'fill') {
+    return normalized;
+  }
+  return inferredFallback;
 }
 
 export function resolveAndroidNativeStartupSplashMinDurationMs() {
@@ -162,6 +185,7 @@ export function stageBrowserAssets(options = {}) {
   const runtimeProfile = options.runtimeProfile ?? resolveAndroidRuntimeProfile();
   const includeDemoAssets = options.includeDemoAssets ?? resolveAndroidIncludeDemoAssets(runtimeProfile);
   const nativeStartupSplashVariant = options.nativeStartupSplashVariant ?? resolveAndroidNativeStartupSplashVariant();
+  const nativeStartupSplashFitMode = options.nativeStartupSplashFitMode ?? resolveAndroidNativeStartupSplashFitMode(nativeStartupSplashVariant);
   const nativeStartupSplashMinDurationMs = options.nativeStartupSplashMinDurationMs ?? resolveAndroidNativeStartupSplashMinDurationMs();
 
   ensureRequiredBrowserFiles(sourceRoot);
@@ -177,6 +201,7 @@ export function stageBrowserAssets(options = {}) {
       {
         enabled: true,
         variant: nativeStartupSplashVariant,
+        fitMode: nativeStartupSplashFitMode,
         minDurationMs: nativeStartupSplashMinDurationMs,
       },
     ),
@@ -226,6 +251,7 @@ export function stageBrowserAssets(options = {}) {
     runtimeProfile,
     includeDemoAssets,
     nativeStartupSplashVariant,
+    nativeStartupSplashFitMode,
     nativeStartupSplashMinDurationMs,
   };
 }
