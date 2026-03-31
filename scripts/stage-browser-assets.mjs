@@ -4,13 +4,13 @@ import { fileURLToPath } from 'node:url';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const publicDir = path.join(repoRoot, 'app', 'src', 'main', 'assets', 'public');
-const RUNTIME_PROFILE_SNIPPET_MARKER = 'id="axolync-runtime-profile-override"';
+const BUILD_FLAVOR_SNIPPET_MARKER = 'id="axolync-build-flavor-override"';
 const NATIVE_STARTUP_SPLASH_SNIPPET_MARKER = 'id="axolync-native-startup-splash-override"';
 const DEFAULT_NATIVE_STARTUP_SPLASH_VARIANT = 'layered';
 const DEFAULT_NATIVE_STARTUP_SPLASH_FIT_MODE = 'contain';
 const DEFAULT_NATIVE_STARTUP_SPLASH_MIN_DURATION_MS = 2200;
 
-function normalizeRuntimeProfile(rawValue, fallbackValue = 'debug') {
+function normalizeBuildFlavor(rawValue, fallbackValue = 'debug') {
   const normalized = String(rawValue ?? '').trim().toLowerCase();
   if (normalized === 'debug' || normalized === 'release') {
     return normalized;
@@ -41,8 +41,8 @@ function normalizeSplashVariant(rawValue, fallbackValue = DEFAULT_NATIVE_STARTUP
   return fallbackValue;
 }
 
-function buildRuntimeProfileSnippet(runtimeProfile) {
-  return `<script ${RUNTIME_PROFILE_SNIPPET_MARKER}>window.__AXOLYNC_RUNTIME_PROFILE = ${JSON.stringify(runtimeProfile)};</script>`;
+function buildBuildFlavorSnippet(buildFlavor) {
+  return `<script ${BUILD_FLAVOR_SNIPPET_MARKER}>window.__AXOLYNC_BUILD_FLAVOR = ${JSON.stringify(buildFlavor)};</script>`;
 }
 
 function buildNativeStartupSplashSnippet({
@@ -54,11 +54,11 @@ function buildNativeStartupSplashSnippet({
   return `<script ${NATIVE_STARTUP_SPLASH_SNIPPET_MARKER}>window.__AXOLYNC_NATIVE_STARTUP_SPLASH_ENABLED = ${enabled ? 'true' : 'false'}; window.__AXOLYNC_NATIVE_STARTUP_SPLASH_VARIANT = ${JSON.stringify(variant)}; window.__AXOLYNC_NATIVE_STARTUP_SPLASH_FIT_MODE = ${JSON.stringify(fitMode)}; window.__AXOLYNC_NATIVE_STARTUP_SPLASH_MIN_DURATION_MS = ${JSON.stringify(minDurationMs)};</script>`;
 }
 
-function applyRuntimeProfileOverrideToHtml(html, runtimeProfile) {
-  const snippet = buildRuntimeProfileSnippet(runtimeProfile);
-  if (html.includes(RUNTIME_PROFILE_SNIPPET_MARKER)) {
+function applyBuildFlavorOverrideToHtml(html, buildFlavor) {
+  const snippet = buildBuildFlavorSnippet(buildFlavor);
+  if (html.includes(BUILD_FLAVOR_SNIPPET_MARKER)) {
     return html.replace(
-      /<script id="axolync-runtime-profile-override">[\s\S]*?<\/script>/u,
+      /<script id="axolync-build-flavor-override">[\s\S]*?<\/script>/u,
       snippet,
     );
   }
@@ -139,12 +139,12 @@ export function resolveDemoPlayerHtml(currentRepoRoot = repoRoot) {
   return fs.existsSync(fallback) ? fallback : null;
 }
 
-export function resolveAndroidRuntimeProfile() {
-  return normalizeRuntimeProfile(process.env.AXOLYNC_ANDROID_RUNTIME_PROFILE);
+export function resolveAndroidBuildFlavor() {
+  return normalizeBuildFlavor(process.env.AXOLYNC_ANDROID_BUILD_FLAVOR);
 }
 
-export function resolveAndroidIncludeDemoAssets(runtimeProfile = resolveAndroidRuntimeProfile()) {
-  return normalizeBoolean(process.env.AXOLYNC_ANDROID_INCLUDE_DEMO_ASSETS, runtimeProfile === 'debug');
+export function resolveAndroidIncludeDemoAssets(buildFlavor = resolveAndroidBuildFlavor()) {
+  return normalizeBoolean(process.env.AXOLYNC_ANDROID_INCLUDE_DEMO_ASSETS, buildFlavor === 'debug');
 }
 
 export function resolveAndroidNativeStartupSplashVariant() {
@@ -182,8 +182,8 @@ export function stageBrowserAssets(options = {}) {
   const demoAssetsRoot = options.demoAssetsRoot ?? resolveDemoAssetsRoot();
   const demoPluginsRoot = options.demoPluginsRoot ?? resolveDemoPluginsRoot();
   const demoPlayerHtml = options.demoPlayerHtml ?? resolveDemoPlayerHtml();
-  const runtimeProfile = options.runtimeProfile ?? resolveAndroidRuntimeProfile();
-  const includeDemoAssets = options.includeDemoAssets ?? resolveAndroidIncludeDemoAssets(runtimeProfile);
+  const buildFlavor = options.buildFlavor ?? resolveAndroidBuildFlavor();
+  const includeDemoAssets = options.includeDemoAssets ?? resolveAndroidIncludeDemoAssets(buildFlavor);
   const nativeStartupSplashVariant = options.nativeStartupSplashVariant ?? resolveAndroidNativeStartupSplashVariant();
   const nativeStartupSplashFitMode = options.nativeStartupSplashFitMode ?? resolveAndroidNativeStartupSplashFitMode(nativeStartupSplashVariant);
   const nativeStartupSplashMinDurationMs = options.nativeStartupSplashMinDurationMs ?? resolveAndroidNativeStartupSplashMinDurationMs();
@@ -196,8 +196,8 @@ export function stageBrowserAssets(options = {}) {
   const stagedIndexPath = path.join(targetPublicDir, 'index.html');
   fs.writeFileSync(
     stagedIndexPath,
-    applyNativeStartupSplashOverrideToHtml(
-      applyRuntimeProfileOverrideToHtml(fs.readFileSync(stagedIndexPath, 'utf8'), runtimeProfile),
+      applyNativeStartupSplashOverrideToHtml(
+      applyBuildFlavorOverrideToHtml(fs.readFileSync(stagedIndexPath, 'utf8'), buildFlavor),
       {
         enabled: true,
         variant: nativeStartupSplashVariant,
@@ -248,7 +248,7 @@ export function stageBrowserAssets(options = {}) {
     demoAssetsRoot,
     demoPluginsRoot,
     demoPlayerHtml,
-    runtimeProfile,
+    buildFlavor,
     includeDemoAssets,
     nativeStartupSplashVariant,
     nativeStartupSplashFitMode,

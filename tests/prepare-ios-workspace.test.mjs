@@ -30,7 +30,7 @@ test('verifyIosWorkspace reports workspace-only metadata on Linux-style hosts', 
 
   const metadata = verifyIosWorkspace({
     repoRoot: tempRoot,
-    runtimeProfile: 'release',
+    buildFlavor: 'release',
     includeDemoAssets: false,
     platform: 'linux',
     arch: 'x64',
@@ -58,7 +58,7 @@ test('prepareIosWorkspace stages assets, adds ios when missing, and syncs ios be
     repoRoot: tempRoot,
     sourceRoot,
     publicDir,
-    runtimeProfile: 'release',
+    buildFlavor: 'release',
     includeDemoAssets: false,
     runCapCommand(args) {
       seenCommands.push(args.join(' '));
@@ -72,7 +72,7 @@ test('prepareIosWorkspace stages assets, adds ios when missing, and syncs ios be
   assert.equal(fs.existsSync(path.join(publicDir, 'index.html')), true);
   assert.equal(fs.existsSync(path.join(publicDir, 'demo')), false);
   assert.equal(metadata.workspaceGenerated, true);
-  assert.equal(metadata.runtimeProfile, 'release');
+  assert.equal(metadata.buildFlavor, 'release');
   assert.equal(metadata.includeDemoAssets, false);
 
   fs.rmSync(tempRoot, { recursive: true, force: true });

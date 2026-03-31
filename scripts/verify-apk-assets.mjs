@@ -106,7 +106,7 @@ function listZipEntries(apkPath) {
   }).split('\n').map((line) => line.trim()).filter(Boolean);
 }
 
-function detectExpectedRuntimeProfile(apkPath) {
+function detectExpectedBuildFlavor(apkPath) {
   const lower = path.basename(apkPath).toLowerCase();
   return lower.includes('release') ? 'release' : 'debug';
 }
@@ -130,8 +130,8 @@ export function assertDemoAssetState(zipEntries, shouldIncludeDemoAssets, resolv
 
 function verifyApk(apkPath) {
   const resolved = path.resolve(apkPath);
-  const expectedRuntimeProfile = detectExpectedRuntimeProfile(resolved);
-  const shouldIncludeDemoAssets = expectedRuntimeProfile === 'debug';
+  const expectedBuildFlavor = detectExpectedBuildFlavor(resolved);
+  const shouldIncludeDemoAssets = expectedBuildFlavor === 'debug';
   const indexHtml = readZipEntry(resolved, 'assets/public/index.html');
   const syncWorker = readZipEntry(resolved, 'assets/public/workers/syncengineBridgeWorker.js');
   const lyricWorker = readZipEntry(resolved, 'assets/public/workers/lyricflowBridgeWorker.js');
@@ -139,8 +139,8 @@ function verifyApk(apkPath) {
 
   assertIncludes(
     indexHtml,
-    `window.__AXOLYNC_RUNTIME_PROFILE = "${expectedRuntimeProfile}";`,
-    `APK is missing staged ${expectedRuntimeProfile} runtime profile override: ${resolved}`,
+    `window.__AXOLYNC_BUILD_FLAVOR = "${expectedBuildFlavor}";`,
+    `APK is missing staged ${expectedBuildFlavor} build flavor override: ${resolved}`,
   );
 
   assertExcludes(

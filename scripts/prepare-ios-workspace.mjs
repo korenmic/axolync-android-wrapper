@@ -16,7 +16,7 @@ const IOS_REQUIRED_RELATIVE_PATHS = [
   'ios/App/App/public/index.html',
 ];
 
-function normalizeRuntimeProfile(rawValue, fallbackValue = 'release') {
+function normalizeBuildFlavor(rawValue, fallbackValue = 'release') {
   const normalized = String(rawValue ?? '').trim().toLowerCase();
   if (normalized === 'debug' || normalized === 'release') {
     return normalized;
@@ -42,12 +42,12 @@ function fileExists(targetPath) {
   return fs.existsSync(targetPath);
 }
 
-export function resolveIosRuntimeProfile() {
-  return normalizeRuntimeProfile(process.env.AXOLYNC_IOS_RUNTIME_PROFILE);
+export function resolveIosBuildFlavor() {
+  return normalizeBuildFlavor(process.env.AXOLYNC_IOS_BUILD_FLAVOR);
 }
 
-export function resolveIosIncludeDemoAssets(runtimeProfile = resolveIosRuntimeProfile()) {
-  return normalizeBoolean(process.env.AXOLYNC_IOS_INCLUDE_DEMO_ASSETS, runtimeProfile === 'debug');
+export function resolveIosIncludeDemoAssets(buildFlavor = resolveIosBuildFlavor()) {
+  return normalizeBoolean(process.env.AXOLYNC_IOS_INCLUDE_DEMO_ASSETS, buildFlavor === 'debug');
 }
 
 export function iosWorkspaceExpectedPaths(currentRepoRoot = repoRoot) {
@@ -60,15 +60,15 @@ export function detectIosHostAvailability(platform = process.platform) {
 
 export function verifyIosWorkspace(options = {}) {
   const currentRepoRoot = options.repoRoot ?? repoRoot;
-  const runtimeProfile = options.runtimeProfile ?? resolveIosRuntimeProfile();
-  const includeDemoAssets = options.includeDemoAssets ?? resolveIosIncludeDemoAssets(runtimeProfile);
+  const buildFlavor = options.buildFlavor ?? resolveIosBuildFlavor();
+  const includeDemoAssets = options.includeDemoAssets ?? resolveIosIncludeDemoAssets(buildFlavor);
   const missing = iosWorkspaceExpectedPaths(currentRepoRoot).filter((targetPath) => !fileExists(targetPath));
   if (missing.length > 0) {
     throw new Error(`iOS workspace verification failed, missing required files: ${missing.map((p) => path.relative(currentRepoRoot, p)).join(', ')}`);
   }
   return {
     hostPlatform: hostPlatformId(options.platform ?? process.platform, options.arch ?? process.arch),
-    runtimeProfile,
+    buildFlavor,
     includeDemoAssets,
     workspaceGenerated: true,
     workspaceRoot: path.join(currentRepoRoot, 'ios'),
@@ -93,8 +93,8 @@ function defaultCapRunner(args, cwd) {
 
 export function prepareIosWorkspace(options = {}) {
   const currentRepoRoot = options.repoRoot ?? repoRoot;
-  const runtimeProfile = options.runtimeProfile ?? resolveIosRuntimeProfile();
-  const includeDemoAssets = options.includeDemoAssets ?? resolveIosIncludeDemoAssets(runtimeProfile);
+  const buildFlavor = options.buildFlavor ?? resolveIosBuildFlavor();
+  const includeDemoAssets = options.includeDemoAssets ?? resolveIosIncludeDemoAssets(buildFlavor);
   const sourceRoot = options.sourceRoot ?? resolveSourceRoot(currentRepoRoot);
   const publicDir = options.publicDir ?? path.join(currentRepoRoot, 'app', 'src', 'main', 'assets', 'public');
   const runCapCommand = options.runCapCommand ?? defaultCapRunner;
@@ -102,7 +102,7 @@ export function prepareIosWorkspace(options = {}) {
   stageBrowserAssets({
     sourceRoot,
     publicDir,
-    runtimeProfile,
+    buildFlavor,
     includeDemoAssets,
     sourceRoot: sourceRoot,
   });
@@ -119,7 +119,7 @@ export function prepareIosWorkspace(options = {}) {
 
   return verifyIosWorkspace({
     repoRoot: currentRepoRoot,
-    runtimeProfile,
+    buildFlavor,
     includeDemoAssets,
   });
 }

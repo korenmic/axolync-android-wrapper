@@ -33,17 +33,17 @@ test('stageBrowserAssets copies demo plugins, demo player, and browser dist payl
     demoAssetsRoot,
     demoPluginsRoot,
     demoPlayerHtml,
-    runtimeProfile: 'debug',
+    buildFlavor: 'debug',
     includeDemoAssets: true,
   });
 
   assert.equal(result.publicDir, publicDir);
-  assert.equal(result.runtimeProfile, 'debug');
+  assert.equal(result.buildFlavor, 'debug');
   assert.equal(result.nativeStartupSplashVariant, 'layered');
   assert.equal(result.nativeStartupSplashFitMode, 'contain');
   assert.equal(result.nativeStartupSplashMinDurationMs, 2200);
   const stagedDebugIndex = fs.readFileSync(path.join(publicDir, 'index.html'), 'utf8');
-  assert.match(stagedDebugIndex, /window\.__AXOLYNC_RUNTIME_PROFILE = "debug"/);
+  assert.match(stagedDebugIndex, /window\.__AXOLYNC_BUILD_FLAVOR = "debug"/);
   assert.match(stagedDebugIndex, /window\.__AXOLYNC_NATIVE_STARTUP_SPLASH_ENABLED = true/);
   assert.match(stagedDebugIndex, /window\.__AXOLYNC_NATIVE_STARTUP_SPLASH_VARIANT = "layered"/);
   assert.match(stagedDebugIndex, /window\.__AXOLYNC_NATIVE_STARTUP_SPLASH_FIT_MODE = "contain"/);
@@ -85,14 +85,14 @@ test('stageBrowserAssets can stage a release payload without demo assets', () =>
     demoAssetsRoot,
     demoPluginsRoot,
     demoPlayerHtml,
-    runtimeProfile: 'release',
+    buildFlavor: 'release',
     includeDemoAssets: false,
   });
 
-  assert.equal(result.runtimeProfile, 'release');
+  assert.equal(result.buildFlavor, 'release');
   assert.equal(result.includeDemoAssets, false);
   const stagedReleaseIndex = fs.readFileSync(path.join(publicDir, 'index.html'), 'utf8');
-  assert.match(stagedReleaseIndex, /window\.__AXOLYNC_RUNTIME_PROFILE = "release"/);
+  assert.match(stagedReleaseIndex, /window\.__AXOLYNC_BUILD_FLAVOR = "release"/);
   assert.match(stagedReleaseIndex, /window\.__AXOLYNC_NATIVE_STARTUP_SPLASH_ENABLED = true/);
   assert.match(stagedReleaseIndex, /window\.__AXOLYNC_NATIVE_STARTUP_SPLASH_VARIANT = "layered"/);
   assert.match(stagedReleaseIndex, /window\.__AXOLYNC_NATIVE_STARTUP_SPLASH_FIT_MODE = "contain"/);
@@ -112,7 +112,7 @@ test('stageBrowserAssets infers cover fit mode when artwork splash is requested 
   const result = stageBrowserAssets({
     sourceRoot,
     publicDir,
-    runtimeProfile: 'debug',
+    buildFlavor: 'debug',
     includeDemoAssets: false,
     nativeStartupSplashVariant: 'artwork',
   });
