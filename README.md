@@ -37,7 +37,7 @@ Native Android shell for the Axolync web app.
 - `app/src/main/assets/public/` - staged browser build used by the Capacitor host
 - `app/src/main/assets/capacitor/` - checked-in Capacitor asset metadata
 - `scripts/stage-browser-assets.mjs` - stages browser outputs into Capacitor assets
-- `.kiro/specs/android-apk-wrapper/` - requirements/design/tasks
+- `deprecated/.kiro/specs/android-apk-wrapper/` - archived pre-Capacitor localhost-era requirements/design/tasks
 
 ## Build and Test
 
@@ -62,7 +62,7 @@ APK output:
 - This keeps debug APK upgrade lineage stable across machines instead of falling back to each host's local `~/.android/debug.keystore`.
 - Release builds remain outside this debug-key path.
 
-## Local Parity Server (same serving style as embedded Android server)
+## Local Parity Debugging
 
 To debug the staged browser output on desktop, use the browser repo or the builder report artifacts directly. The active Android host no longer depends on a localhost asset server inside the APK.
 

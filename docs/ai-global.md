@@ -30,5 +30,5 @@ If you are an AI agent contributing here, read this file first.
 
 ## Documentation Sync Rules
 - If runtime architecture changes, update README/spec docs in same change set.
-- Keep `DEVELOPER_HANDOFF.md` aligned with actual commands/status.
+- Move one-off handoff/status artifacts under `deprecated/` instead of treating them as current authority.
 - Keep AI docs current when workflow changes.

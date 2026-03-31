@@ -1,6 +1,6 @@
 # Physical Device Validation
 
-This document defines the physical-device validation flow for task `19` in `.kiro/specs/android-apk-wrapper/tasks.md`.
+This document defines the physical-device validation flow historically tracked under task `19` in `deprecated/.kiro/specs/android-apk-wrapper/tasks.md`.
 
 ## Target Device Profile
 
@@ -28,11 +28,10 @@ The script:
 
 ## Measurements
 
-The validation run tracks:
+The validation run currently tracks:
 
-- Startup readiness (`/health` reachable through localhost path)
+- connected Android test pass/fail status
 - Audio-capture sanity pipeline enablement
 - Device profile metadata for reproducibility
 
 If no device is connected, the script writes a `SKIPPED` report entry with reason `no_adb_device_connected`.
-
