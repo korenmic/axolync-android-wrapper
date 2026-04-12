@@ -37,6 +37,20 @@ class MainActivityCapacitorHostTest {
     }
 
     @Test
+    fun `manifest keeps parity with Capacitor web audio capture permission requests`() {
+        val bridgeWebChromeClient = repoFile(
+            "node_modules/@capacitor/android/capacitor/src/main/java/com/getcapacitor/BridgeWebChromeClient.java"
+        ).readText()
+        val manifest = repoFile("app/src/main/AndroidManifest.xml").readText()
+
+        assertTrue(bridgeWebChromeClient.contains("android.webkit.resource.AUDIO_CAPTURE"))
+        assertTrue(bridgeWebChromeClient.contains("Manifest.permission.RECORD_AUDIO"))
+        assertTrue(bridgeWebChromeClient.contains("Manifest.permission.MODIFY_AUDIO_SETTINGS"))
+        assertTrue(manifest.contains("android.permission.RECORD_AUDIO"))
+        assertTrue(manifest.contains("android.permission.MODIFY_AUDIO_SETTINGS"))
+    }
+
+    @Test
     fun `startup splash layout keeps a shared matte between backdrop and centered artwork`() {
         val layout = repoFile("app/src/main/res/layout/activity_splash.xml").readText()
         assertTrue(layout.contains("android:id=\"@+id/splash_foreground_group\""))
