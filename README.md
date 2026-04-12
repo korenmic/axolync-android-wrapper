@@ -77,6 +77,7 @@ It copies:
 ## Permissions
 
 - `RECORD_AUDIO`
+- `MODIFY_AUDIO_SETTINGS`
 - `INTERNET`
 - `ACCESS_NETWORK_STATE`
 

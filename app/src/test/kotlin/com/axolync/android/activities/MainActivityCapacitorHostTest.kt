@@ -28,6 +28,8 @@ class MainActivityCapacitorHostTest {
     fun `manifest launches main activity directly without legacy splash or notification listener wiring`() {
         val manifest = repoFile("app/src/main/AndroidManifest.xml").readText()
         assertTrue(manifest.contains(".activities.MainActivity"))
+        assertTrue(manifest.contains("android.permission.RECORD_AUDIO"))
+        assertTrue(manifest.contains("android.permission.MODIFY_AUDIO_SETTINGS"))
         assertFalse(manifest.contains("SplashActivity"))
         assertFalse(manifest.contains("StatusBarSongSignalService"))
         assertFalse(manifest.contains("AxolyncApplication"))
