@@ -6,6 +6,7 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 const publicDir = path.join(repoRoot, 'app', 'src', 'main', 'assets', 'public');
 const BUILD_FLAVOR_SNIPPET_MARKER = 'id="axolync-build-flavor-override"';
 const NATIVE_STARTUP_SPLASH_SNIPPET_MARKER = 'id="axolync-native-startup-splash-override"';
+const NATIVE_SERVICE_COMPANION_HOST_SNIPPET_MARKER = 'id="axolync-native-service-companion-host-override"';
 const DEFAULT_NATIVE_STARTUP_SPLASH_VARIANT = 'layered';
 const DEFAULT_NATIVE_STARTUP_SPLASH_FIT_MODE = 'contain';
 const DEFAULT_NATIVE_STARTUP_SPLASH_MIN_DURATION_MS = 2200;
@@ -54,6 +55,49 @@ function buildNativeStartupSplashSnippet({
   return `<script ${NATIVE_STARTUP_SPLASH_SNIPPET_MARKER}>window.__AXOLYNC_NATIVE_STARTUP_SPLASH_ENABLED = ${enabled ? 'true' : 'false'}; window.__AXOLYNC_NATIVE_STARTUP_SPLASH_VARIANT = ${JSON.stringify(variant)}; window.__AXOLYNC_NATIVE_STARTUP_SPLASH_FIT_MODE = ${JSON.stringify(fitMode)}; window.__AXOLYNC_NATIVE_STARTUP_SPLASH_MIN_DURATION_MS = ${JSON.stringify(minDurationMs)};</script>`;
 }
 
+function buildNativeServiceCompanionHostSnippet() {
+  const body = [
+    '(function () {',
+    '  const resolvePlugin = function() {',
+    "    return window.Capacitor && window.Capacitor.Plugins ? window.Capacitor.Plugins.AxolyncNativeServiceCompanionHost : null;",
+    '  };',
+    '  const invoke = async function(methodName, payload) {',
+    '    const plugin = resolvePlugin();',
+    `    if (!plugin || typeof plugin[methodName] !== 'function') {`,
+    "      throw new Error('Capacitor native service companion bridge is unavailable.');",
+    '    }',
+    '    return plugin[methodName](payload);',
+    '  };',
+    '  const host = Object.freeze({',
+    "    hostFamily: 'capacitor',",
+    "    hostPlatform: 'android',",
+    '    hostAbi: null,',
+    '    async getStatus(addonId, companionId) {',
+    "      return invoke('getStatus', { addonId, companionId });",
+    '    },',
+    '    async setEnabled(addonId, companionId, enabled) {',
+    "      return invoke('setEnabled', { addonId, companionId, enabled });",
+    '    },',
+    '    async start(addonId, companionId) {',
+    "      return invoke('start', { addonId, companionId });",
+    '    },',
+    '    async stop(addonId, companionId) {',
+    "      return invoke('stop', { addonId, companionId });",
+    '    },',
+    '    async request(addonId, companionId, request) {',
+    "      return invoke('request', { addonId, companionId, request });",
+    '    },',
+    '    async getConnection(addonId, companionId) {',
+    "      return invoke('getConnection', { addonId, companionId });",
+    '    }',
+    '  });',
+    '  window.__AXOLYNC_NATIVE_SERVICE_COMPANION_HOST__ = host;',
+    "  window.__AXOLYNC_NATIVE_SERVICE_COMPANION_HOST_FAMILY = 'capacitor';",
+    '})();',
+  ].join('\n');
+  return `<script ${NATIVE_SERVICE_COMPANION_HOST_SNIPPET_MARKER}>${body}</script>`;
+}
+
 function applyBuildFlavorOverrideToHtml(html, buildFlavor) {
   const snippet = buildBuildFlavorSnippet(buildFlavor);
   if (html.includes(BUILD_FLAVOR_SNIPPET_MARKER)) {
@@ -82,6 +126,24 @@ function applyNativeStartupSplashOverrideToHtml(html, {
   if (html.includes(NATIVE_STARTUP_SPLASH_SNIPPET_MARKER)) {
     return html.replace(
       /<script id="axolync-native-startup-splash-override">[\s\S]*?<\/script>/u,
+      snippet,
+    );
+  }
+  if (html.includes('</head>')) {
+    return html.replace('</head>', `  ${snippet}\n</head>`);
+  }
+  const doctypeMatch = html.match(/^<!doctype[^>]*>/iu);
+  if (doctypeMatch) {
+    return `${doctypeMatch[0]}\n${snippet}${html.slice(doctypeMatch[0].length)}`;
+  }
+  return `${snippet}\n${html}`;
+}
+
+function applyNativeServiceCompanionHostOverrideToHtml(html) {
+  const snippet = buildNativeServiceCompanionHostSnippet();
+  if (html.includes(NATIVE_SERVICE_COMPANION_HOST_SNIPPET_MARKER)) {
+    return html.replace(
+      /<script id="axolync-native-service-companion-host-override">[\s\S]*?<\/script>/u,
       snippet,
     );
   }
@@ -196,14 +258,16 @@ export function stageBrowserAssets(options = {}) {
   const stagedIndexPath = path.join(targetPublicDir, 'index.html');
   fs.writeFileSync(
     stagedIndexPath,
+    applyNativeServiceCompanionHostOverrideToHtml(
       applyNativeStartupSplashOverrideToHtml(
-      applyBuildFlavorOverrideToHtml(fs.readFileSync(stagedIndexPath, 'utf8'), buildFlavor),
-      {
-        enabled: true,
-        variant: nativeStartupSplashVariant,
-        fitMode: nativeStartupSplashFitMode,
-        minDurationMs: nativeStartupSplashMinDurationMs,
-      },
+        applyBuildFlavorOverrideToHtml(fs.readFileSync(stagedIndexPath, 'utf8'), buildFlavor),
+        {
+          enabled: true,
+          variant: nativeStartupSplashVariant,
+          fitMode: nativeStartupSplashFitMode,
+          minDurationMs: nativeStartupSplashMinDurationMs,
+        },
+      ),
     ),
     'utf8',
   );

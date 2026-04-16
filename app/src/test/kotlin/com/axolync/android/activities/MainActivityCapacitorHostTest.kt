@@ -21,7 +21,22 @@ class MainActivityCapacitorHostTest {
         val source = repoFile("app/src/main/kotlin/com/axolync/android/activities/MainActivity.kt").readText()
         assertTrue(source.contains("BridgeActivity"))
         assertTrue(source.contains("class MainActivity : BridgeActivity"))
+        assertTrue(source.contains("registerPlugin(AxolyncNativeServiceCompanionHostPlugin::class.java)"))
         assertTrue(source.contains("showStartupSplashOverlay"))
+    }
+
+    @Test
+    fun `native service companion plugin keeps the Capacitor host surface generic and addon-agnostic`() {
+        val source = repoFile("app/src/main/kotlin/com/axolync/android/bridge/AxolyncNativeServiceCompanionHostPlugin.kt").readText()
+        assertTrue(source.contains("@CapacitorPlugin(name = \"AxolyncNativeServiceCompanionHost\")"))
+        assertTrue(source.contains("fun getStatus"))
+        assertTrue(source.contains("fun setEnabled"))
+        assertTrue(source.contains("fun start"))
+        assertTrue(source.contains("fun stop"))
+        assertTrue(source.contains("fun request"))
+        assertTrue(source.contains("fun getConnection"))
+        assertTrue(source.contains("No native service companion is registered on this Capacitor host."))
+        assertFalse(source.contains("vibra"))
     }
 
     @Test
