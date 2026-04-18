@@ -89,9 +89,13 @@ function buildNativeServiceCompanionHostSnippet() {
     '    },',
     '    async getConnection(addonId, companionId) {',
     "      return invoke('getConnection', { addonId, companionId });",
+    '    },',
+    '    async clearPersistedRuntimeState() {',
+    "      return { ok: true, details: 'Browser-owned runtime state reset is handled in the webview runtime.' };",
     '    }',
     '  });',
     '  window.__AXOLYNC_NATIVE_SERVICE_COMPANION_HOST__ = host;',
+    '  window.__AXOLYNC_RUNTIME_STATE_RESET_HOST__ = Object.freeze({ clearPersistedRuntimeState: host.clearPersistedRuntimeState });',
     "  window.__AXOLYNC_NATIVE_SERVICE_COMPANION_HOST_FAMILY = 'capacitor';",
     '})();',
   ].join('\n');

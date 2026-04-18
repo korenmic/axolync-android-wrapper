@@ -54,10 +54,12 @@ test('stageBrowserAssets copies demo plugins, demo player, and browser dist payl
   assert.match(stagedDebugIndex, /window\.__AXOLYNC_NATIVE_STARTUP_SPLASH_FIT_MODE = "contain"/);
   assert.match(stagedDebugIndex, /window\.__AXOLYNC_NATIVE_STARTUP_SPLASH_MIN_DURATION_MS = 2200/);
   assert.match(stagedDebugIndex, /window\.__AXOLYNC_NATIVE_SERVICE_COMPANION_HOST__/);
+  assert.match(stagedDebugIndex, /window\.__AXOLYNC_RUNTIME_STATE_RESET_HOST__/);
   assert.match(stagedDebugIndex, /window\.Capacitor\.Plugins\.AxolyncNativeServiceCompanionHost/);
   assert.match(stagedDebugIndex, /hostPlatform: 'android'/);
   assert.match(stagedDebugIndex, /hostAbi: null/);
   assert.match(stagedDebugIndex, /getConnection/);
+  assert.match(stagedDebugIndex, /clearPersistedRuntimeState/);
   assert.equal(fs.readFileSync(path.join(publicDir, 'assets', 'main.js'), 'utf8'), 'console.log("browser");');
   assert.equal(fs.readFileSync(path.join(publicDir, 'demo', 'assets', 'house_of_the_rising_sun_instrumental.ogg'), 'utf8'), 'ogg');
   assert.equal(fs.readFileSync(path.join(publicDir, 'demo', 'plugins', 'demo-lyricflow.js'), 'utf8'), 'self.onmessage = () => {};');
@@ -116,6 +118,7 @@ test('stageBrowserAssets can stage a release payload without demo assets', () =>
   assert.match(stagedReleaseIndex, /window\.__AXOLYNC_NATIVE_STARTUP_SPLASH_FIT_MODE = "contain"/);
   assert.match(stagedReleaseIndex, /window\.__AXOLYNC_NATIVE_STARTUP_SPLASH_MIN_DURATION_MS = 2200/);
   assert.match(stagedReleaseIndex, /window\.__AXOLYNC_NATIVE_SERVICE_COMPANION_HOST_FAMILY = 'capacitor'/);
+  assert.match(stagedReleaseIndex, /window\.__AXOLYNC_RUNTIME_STATE_RESET_HOST__/);
   assert.match(stagedReleaseIndex, /hostPlatform: 'android'/);
   assert.match(stagedReleaseIndex, /hostAbi: null/);
   assert.equal(fs.existsSync(path.join(publicDir, 'demo')), false);
