@@ -20,6 +20,11 @@ private const val CAPACITOR_HOST_FAMILY = "capacitor"
 private const val CAPACITOR_HOST_PLATFORM = "android"
 private const val ASSET_MANIFEST_PATH = "public/native-service-companions/manifest.json"
 private const val UNSUPPORTED_BUNDLE_MESSAGE = "Native bridge is unavailable in this bundle for the current host."
+private val LOOPBACK_CORS_HEADERS = mapOf(
+    "Access-Control-Allow-Origin" to "*",
+    "Access-Control-Allow-Methods" to "GET, OPTIONS",
+    "Access-Control-Allow-Headers" to "Accept, Content-Type"
+)
 
 private data class NativeBridgeOperatorGeo(
     val altitude: Double,
@@ -94,6 +99,9 @@ private class ShazamDiscoveryLoopbackServer(
     fun baseUrl(): String = "http://127.0.0.1:$listeningPort${descriptor.listenPath}"
 
     override fun serve(session: IHTTPSession): Response {
+        if (session.method == Method.OPTIONS) {
+            return jsonResponse(Response.Status.NO_CONTENT, "")
+        }
         if (session.uri != descriptor.listenPath) {
             return jsonResponse(
                 Response.Status.NOT_FOUND,
@@ -174,7 +182,9 @@ private class ShazamDiscoveryLoopbackServer(
     }
 
     private fun jsonResponse(status: Response.Status, body: String): Response {
-        return newFixedLengthResponse(status, "application/json; charset=utf-8", body)
+        return newFixedLengthResponse(status, "application/json; charset=utf-8", body).apply {
+            LOOPBACK_CORS_HEADERS.forEach { (name, value) -> addHeader(name, value) }
+        }
     }
 
     private fun pickOne(values: List<String>): String? {
