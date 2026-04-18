@@ -6,6 +6,7 @@ import com.getcapacitor.PluginCall
 import com.getcapacitor.PluginMethod
 import com.getcapacitor.annotation.CapacitorPlugin
 import fi.iki.elonen.NanoHTTPD
+import android.os.Build
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.FileNotFoundException
@@ -16,6 +17,7 @@ import java.util.UUID
 import kotlin.random.Random
 
 private const val CAPACITOR_HOST_FAMILY = "capacitor"
+private const val CAPACITOR_HOST_PLATFORM = "android"
 private const val ASSET_MANIFEST_PATH = "public/native-service-companions/manifest.json"
 private const val UNSUPPORTED_BUNDLE_MESSAGE = "Native bridge is unavailable in this bundle for the current host."
 
@@ -183,6 +185,26 @@ private class ShazamDiscoveryLoopbackServer(
     }
 }
 
+private fun normalizeHostAbi(rawAbi: String?): String? {
+    return when (rawAbi?.trim()?.lowercase()) {
+        "", null -> null
+        "arm64-v8a", "aarch64", "arm64" -> "arm64"
+        "x86_64", "amd64", "x64" -> "x64"
+        "armeabi-v7a", "armv7", "armv7l" -> "armv7"
+        "armeabi", "arm" -> "arm"
+        "x86", "i386", "i686" -> "x86"
+        else -> rawAbi.trim().lowercase()
+    }
+}
+
+private fun detectHostAbi(): String? {
+    val supportedAbis = Build.SUPPORTED_ABIS
+    if (!supportedAbis.isNullOrEmpty()) {
+        return normalizeHostAbi(supportedAbis.firstOrNull())
+    }
+    return normalizeHostAbi(System.getProperty("os.arch"))
+}
+
 @CapacitorPlugin(name = "AxolyncNativeServiceCompanionHost")
 class AxolyncNativeServiceCompanionHostPlugin : Plugin() {
 
@@ -196,6 +218,17 @@ class AxolyncNativeServiceCompanionHostPlugin : Plugin() {
         val addonId = call.getString("addonId").orEmpty()
         val companionId = call.getString("companionId").orEmpty()
         call.resolve(buildStatusEnvelope(addonId, companionId, null))
+    }
+
+    @PluginMethod
+    fun getHostInfo(call: PluginCall) {
+        call.resolve(
+            JSObject().apply {
+                put("hostFamily", CAPACITOR_HOST_FAMILY)
+                put("hostPlatform", CAPACITOR_HOST_PLATFORM)
+                put("hostAbi", detectHostAbi())
+            }
+        )
     }
 
     @PluginMethod
