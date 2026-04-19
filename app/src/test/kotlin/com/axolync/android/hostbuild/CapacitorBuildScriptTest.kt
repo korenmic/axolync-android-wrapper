@@ -27,6 +27,12 @@ class CapacitorBuildScriptTest {
         assertTrue(source.contains("create(\"axolyncTrackedDebug\")"))
         assertTrue(source.contains("signing/axolync-debug.keystore"))
         assertTrue(source.contains("signingConfig = signingConfigs.getByName(\"axolyncTrackedDebug\")"))
+        assertTrue(
+            "Expected tracked debug signing to cover both debug and release build types",
+            Regex("""signingConfig = signingConfigs\.getByName\("axolyncTrackedDebug"\)""")
+                .findAll(source)
+                .count() >= 2
+        )
         assertTrue(source.contains("org.nanohttpd:nanohttpd:2.3.1"))
         assertFalse(source.contains(".android/debug.keystore"))
         assertFalse(source.contains("com.chaquo.python"))

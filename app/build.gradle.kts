@@ -48,6 +48,7 @@ android {
             signingConfig = signingConfigs.getByName("axolyncTrackedDebug")
         }
         release {
+            signingConfig = signingConfigs.getByName("axolyncTrackedDebug")
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
