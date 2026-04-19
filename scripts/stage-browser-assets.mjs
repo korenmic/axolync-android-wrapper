@@ -51,6 +51,30 @@ function normalizeSplashVariant(rawValue, fallbackValue = DEFAULT_NATIVE_STARTUP
   return fallbackValue;
 }
 
+function copyDirectoryDeterministically(sourceDir, targetDir) {
+  fs.mkdirSync(targetDir, { recursive: true });
+  for (const entry of fs.readdirSync(sourceDir).sort((left, right) => left.localeCompare(right))) {
+    const source = path.join(sourceDir, entry);
+    const target = path.join(targetDir, entry);
+    const stat = fs.statSync(source);
+    if (stat.isDirectory()) {
+      copyDirectoryDeterministically(source, target);
+      continue;
+    }
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.copyFileSync(source, target);
+  }
+}
+
+function restageDirectoryDeterministically(rootDir) {
+  if (!rootDir || !fs.existsSync(rootDir)) return;
+  const tempDir = `${rootDir}.axolync-deterministic`;
+  fs.rmSync(tempDir, { recursive: true, force: true });
+  copyDirectoryDeterministically(rootDir, tempDir);
+  fs.rmSync(rootDir, { recursive: true, force: true });
+  fs.renameSync(tempDir, rootDir);
+}
+
 function buildBuildFlavorSnippet(buildFlavor) {
   return `<script ${BUILD_FLAVOR_SNIPPET_MARKER}>window.__AXOLYNC_BUILD_FLAVOR = ${JSON.stringify(buildFlavor)};</script>`;
 }
@@ -482,6 +506,16 @@ export function stageBrowserAssets(options = {}) {
     const playerTarget = path.join(targetPublicDir, 'demo', 'player.html');
     fs.mkdirSync(path.dirname(playerTarget), { recursive: true });
     fs.copyFileSync(demoPlayerHtml, playerTarget);
+  }
+
+  for (const stableDir of [
+    path.join(targetPublicDir, 'plugins', 'preinstalled'),
+    path.join(targetPublicDir, 'themes', 'preinstalled'),
+    path.join(targetPublicDir, 'native-service-companions'),
+    path.join(targetPublicDir, 'demo', 'assets'),
+    path.join(targetPublicDir, 'demo', 'plugins'),
+  ]) {
+    restageDirectoryDeterministically(stableDir);
   }
 
   for (const stubName of ['cordova.js', 'cordova_plugins.js']) {
