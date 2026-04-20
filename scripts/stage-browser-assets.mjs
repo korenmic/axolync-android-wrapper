@@ -32,6 +32,7 @@ const CAPACITOR_NATIVE_BRIDGE_PLUGIN_REGISTRY = Object.freeze([
 const BUILD_FLAVOR_SNIPPET_MARKER = 'id="axolync-build-flavor-override"';
 const NATIVE_STARTUP_SPLASH_SNIPPET_MARKER = 'id="axolync-native-startup-splash-override"';
 const NATIVE_SERVICE_COMPANION_HOST_SNIPPET_MARKER = 'id="axolync-native-service-companion-host-override"';
+const PREINSTALLED_MANIFEST_FALLBACK_SNIPPET_MARKER = 'id="axolync-preinstalled-manifest-fallback-override"';
 const DEFAULT_NATIVE_STARTUP_SPLASH_VARIANT = 'layered';
 const DEFAULT_NATIVE_STARTUP_SPLASH_FIT_MODE = 'contain';
 const DEFAULT_NATIVE_STARTUP_SPLASH_MIN_DURATION_MS = 2200;
@@ -102,6 +103,20 @@ function buildNativeStartupSplashSnippet({
   minDurationMs = DEFAULT_NATIVE_STARTUP_SPLASH_MIN_DURATION_MS,
 } = {}) {
   return `<script ${NATIVE_STARTUP_SPLASH_SNIPPET_MARKER}>window.__AXOLYNC_NATIVE_STARTUP_SPLASH_ENABLED = ${enabled ? 'true' : 'false'}; window.__AXOLYNC_NATIVE_STARTUP_SPLASH_VARIANT = ${JSON.stringify(variant)}; window.__AXOLYNC_NATIVE_STARTUP_SPLASH_FIT_MODE = ${JSON.stringify(fitMode)}; window.__AXOLYNC_NATIVE_STARTUP_SPLASH_MIN_DURATION_MS = ${JSON.stringify(minDurationMs)};</script>`;
+}
+
+function readJsonIfPresent(filePath, fallbackValue) {
+  if (!filePath || !fs.existsSync(filePath)) {
+    return fallbackValue;
+  }
+  return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+}
+
+function buildPreinstalledManifestFallbackSnippet({
+  addonManifest,
+  themeManifest,
+}) {
+  return `<script ${PREINSTALLED_MANIFEST_FALLBACK_SNIPPET_MARKER}>window.__AXOLYNC_PREINSTALLED_ADDON_MANIFEST_FALLBACK__ = ${JSON.stringify(addonManifest)}; window.__AXOLYNC_PREINSTALLED_THEME_MANIFEST_FALLBACK__ = ${JSON.stringify(themeManifest)};</script>`;
 }
 
 function buildNativeServiceCompanionHostSnippet() {
@@ -346,6 +361,24 @@ function applyNativeServiceCompanionHostOverrideToHtml(html) {
   return `${snippet}\n${html}`;
 }
 
+function applyPreinstalledManifestFallbackOverrideToHtml(html, manifests) {
+  const snippet = buildPreinstalledManifestFallbackSnippet(manifests);
+  if (html.includes(PREINSTALLED_MANIFEST_FALLBACK_SNIPPET_MARKER)) {
+    return html.replace(
+      /<script id="axolync-preinstalled-manifest-fallback-override">[\s\S]*?<\/script>/u,
+      snippet,
+    );
+  }
+  if (html.includes('</head>')) {
+    return html.replace('</head>', `  ${snippet}\n</head>`);
+  }
+  const doctypeMatch = html.match(/^<!doctype[^>]*>/iu);
+  if (doctypeMatch) {
+    return `${doctypeMatch[0]}\n${snippet}${html.slice(doctypeMatch[0].length)}`;
+  }
+  return `${snippet}\n${html}`;
+}
+
 export function resolveSourceRoot(currentRepoRoot = repoRoot) {
   const builderNormal = process.env.AXOLYNC_BUILDER_BROWSER_NORMAL?.trim();
   if (builderNormal) {
@@ -491,12 +524,25 @@ export function stageBrowserAssets(options = {}) {
   fs.rmSync(targetPublicDir, { recursive: true, force: true });
   fs.mkdirSync(targetPublicDir, { recursive: true });
   fs.cpSync(sourceRoot, targetPublicDir, { recursive: true });
+  const preinstalledManifestFallback = {
+    addonManifest: readJsonIfPresent(
+      path.join(targetPublicDir, 'plugins', 'preinstalled', 'manifest.json'),
+      { plugins: [] },
+    ),
+    themeManifest: readJsonIfPresent(
+      path.join(targetPublicDir, 'themes', 'preinstalled', 'manifest.json'),
+      { themes: [] },
+    ),
+  };
   const stagedIndexPath = path.join(targetPublicDir, 'index.html');
   fs.writeFileSync(
     stagedIndexPath,
     applyNativeServiceCompanionHostOverrideToHtml(
       applyNativeStartupSplashOverrideToHtml(
-        applyBuildFlavorOverrideToHtml(fs.readFileSync(stagedIndexPath, 'utf8'), buildFlavor),
+        applyPreinstalledManifestFallbackOverrideToHtml(
+          applyBuildFlavorOverrideToHtml(fs.readFileSync(stagedIndexPath, 'utf8'), buildFlavor),
+          preinstalledManifestFallback,
+        ),
         {
           enabled: true,
           variant: nativeStartupSplashVariant,
@@ -579,6 +625,7 @@ export function stageBrowserAssets(options = {}) {
     nativeServiceCompanionAssetsRoot,
     capacitorConfig,
     capacitorPluginRegistry,
+    preinstalledManifestFallback,
     nativeStartupSplashVariant,
     nativeStartupSplashFitMode,
     nativeStartupSplashMinDurationMs,

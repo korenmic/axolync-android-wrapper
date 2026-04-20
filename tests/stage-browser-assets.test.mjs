@@ -27,6 +27,22 @@ test('stageBrowserAssets copies demo plugins, demo player, and browser dist payl
 
   writeFile(path.join(sourceRoot, 'index.html'), '<!doctype html><title>Axolync</title>');
   writeFile(path.join(sourceRoot, 'assets', 'main.js'), 'console.log("browser");');
+  writeFile(path.join(sourceRoot, 'plugins', 'preinstalled', 'manifest.json'), JSON.stringify({
+    plugins: [
+      {
+        id: 'axolync-addon-vibra',
+        url: '/plugins/preinstalled/axolync-addon-vibra.zip',
+      },
+    ],
+  }));
+  writeFile(path.join(sourceRoot, 'themes', 'preinstalled', 'manifest.json'), JSON.stringify({
+    themes: [
+      {
+        id: 'aurora-stage',
+        url: '/themes/preinstalled/aurora-stage.zip',
+      },
+    ],
+  }));
   writeFile(path.join(demoAssetsRoot, 'demo_track.wav'), 'wav');
   writeFile(path.join(demoAssetsRoot, 'house_of_the_rising_sun_instrumental.ogg'), 'ogg');
   writeFile(path.join(demoPluginsRoot, 'demo-lyricflow.js'), 'self.onmessage = () => {};');
@@ -67,6 +83,10 @@ test('stageBrowserAssets copies demo plugins, demo player, and browser dist payl
   assert.equal(result.nativeStartupSplashMinDurationMs, 2200);
   const stagedDebugIndex = fs.readFileSync(path.join(publicDir, 'index.html'), 'utf8');
   assert.match(stagedDebugIndex, /window\.__AXOLYNC_BUILD_FLAVOR = "debug"/);
+  assert.match(stagedDebugIndex, /window\.__AXOLYNC_PREINSTALLED_ADDON_MANIFEST_FALLBACK__/);
+  assert.match(stagedDebugIndex, /window\.__AXOLYNC_PREINSTALLED_THEME_MANIFEST_FALLBACK__/);
+  assert.match(stagedDebugIndex, /"axolync-addon-vibra"/);
+  assert.match(stagedDebugIndex, /"aurora-stage"/);
   assert.match(stagedDebugIndex, /window\.__AXOLYNC_NATIVE_STARTUP_SPLASH_ENABLED = true/);
   assert.match(stagedDebugIndex, /window\.__AXOLYNC_NATIVE_STARTUP_SPLASH_VARIANT = "layered"/);
   assert.match(stagedDebugIndex, /window\.__AXOLYNC_NATIVE_STARTUP_SPLASH_FIT_MODE = "contain"/);
@@ -147,6 +167,12 @@ test('stageBrowserAssets can stage a release payload without demo assets', () =>
 
   writeFile(path.join(sourceRoot, 'index.html'), '<!doctype html><title>Axolync</title>');
   writeFile(path.join(sourceRoot, 'assets', 'main.js'), 'console.log("browser");');
+  writeFile(path.join(sourceRoot, 'plugins', 'preinstalled', 'manifest.json'), JSON.stringify({
+    plugins: [],
+  }));
+  writeFile(path.join(sourceRoot, 'themes', 'preinstalled', 'manifest.json'), JSON.stringify({
+    themes: [],
+  }));
   writeFile(path.join(demoAssetsRoot, 'demo_track.wav'), 'wav');
   writeFile(path.join(sourceRoot, 'demo', 'plugins', 'demo-lyricflow.js'), 'stale demo payload');
   writeFile(path.join(demoAssetsRoot, 'house_of_the_rising_sun_instrumental.ogg'), 'ogg');
@@ -169,6 +195,8 @@ test('stageBrowserAssets can stage a release payload without demo assets', () =>
   assert.equal(result.capacitorConfig.rootPath, path.join(assetRoot, 'capacitor.config.json'));
   const stagedReleaseIndex = fs.readFileSync(path.join(publicDir, 'index.html'), 'utf8');
   assert.match(stagedReleaseIndex, /window\.__AXOLYNC_BUILD_FLAVOR = "release"/);
+  assert.match(stagedReleaseIndex, /window\.__AXOLYNC_PREINSTALLED_ADDON_MANIFEST_FALLBACK__ = \{\"plugins\":\[\]\}/);
+  assert.match(stagedReleaseIndex, /window\.__AXOLYNC_PREINSTALLED_THEME_MANIFEST_FALLBACK__ = \{\"themes\":\[\]\}/);
   assert.match(stagedReleaseIndex, /window\.__AXOLYNC_NATIVE_STARTUP_SPLASH_ENABLED = true/);
   assert.match(stagedReleaseIndex, /window\.__AXOLYNC_NATIVE_STARTUP_SPLASH_VARIANT = "layered"/);
   assert.match(stagedReleaseIndex, /window\.__AXOLYNC_NATIVE_STARTUP_SPLASH_FIT_MODE = "contain"/);
