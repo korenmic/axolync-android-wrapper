@@ -111,27 +111,33 @@ function detectExpectedBuildFlavor(apkPath) {
   return lower.includes('release') ? 'release' : 'debug';
 }
 
+function detectExpectedArtifactFlavor(apkPath) {
+  const normalized = path.resolve(apkPath).replaceAll('\\', '/').toLowerCase();
+  return normalized.includes('/demo/') || path.basename(normalized).includes('-demo-') ? 'demo' : 'normal';
+}
+
 export function assertDemoAssetState(zipEntries, shouldIncludeDemoAssets, resolved) {
   const hasAnyDemoTreeEntry = zipEntries.some((entry) => entry.startsWith('assets/public/demo/'));
   for (const expectedEntry of DEBUG_DEMO_ENTRIES) {
     const hasEntry = zipEntries.includes(expectedEntry);
     if (shouldIncludeDemoAssets && !hasEntry) {
-      throw new Error(`APK is missing required demo asset in debug profile: ${resolved} (${expectedEntry})`);
+      throw new Error(`APK is missing required demo asset in demo-enabled profile: ${resolved} (${expectedEntry})`);
     }
     if (!shouldIncludeDemoAssets && hasEntry) {
-      throw new Error(`APK unexpectedly ships demo asset in release profile: ${resolved} (${expectedEntry})`);
+      throw new Error(`APK unexpectedly ships demo asset in demo-free profile: ${resolved} (${expectedEntry})`);
     }
   }
 
   if (!shouldIncludeDemoAssets && hasAnyDemoTreeEntry) {
-    throw new Error(`APK unexpectedly ships demo asset tree in release profile: ${resolved}`);
+    throw new Error(`APK unexpectedly ships demo asset tree in demo-free profile: ${resolved}`);
   }
 }
 
 function verifyApk(apkPath) {
   const resolved = path.resolve(apkPath);
   const expectedBuildFlavor = detectExpectedBuildFlavor(resolved);
-  const shouldIncludeDemoAssets = expectedBuildFlavor === 'debug';
+  const expectedArtifactFlavor = detectExpectedArtifactFlavor(resolved);
+  const shouldIncludeDemoAssets = expectedArtifactFlavor === 'demo' || expectedBuildFlavor === 'debug';
   const indexHtml = readZipEntry(resolved, 'assets/public/index.html');
   const syncWorker = readZipEntry(resolved, 'assets/public/workers/syncengineBridgeWorker.js');
   const lyricWorker = readZipEntry(resolved, 'assets/public/workers/lyricflowBridgeWorker.js');

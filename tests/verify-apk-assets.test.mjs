@@ -16,7 +16,7 @@ test('assertDemoAssetState accepts the full debug demo payload', () => {
   });
 });
 
-test('assertDemoAssetState rejects release payloads that still ship demo media or player assets', () => {
+test('assertDemoAssetState rejects demo-free payloads that still ship demo media or player assets', () => {
   const zipEntries = [
     'assets/public/index.html',
     'assets/public/demo/player.html',
@@ -25,5 +25,5 @@ test('assertDemoAssetState rejects release payloads that still ship demo media o
 
   assert.throws(() => {
     assertDemoAssetState(zipEntries, false, '/tmp/release.apk');
-  }, /unexpectedly ships demo asset in release profile|unexpectedly ships demo asset tree in release profile/);
+  }, /unexpectedly ships demo asset in demo-free profile|unexpectedly ships demo asset tree in demo-free profile/);
 });
