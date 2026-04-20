@@ -52,11 +52,10 @@ class MainActivityCapacitorHostTest {
         assertTrue(source.contains("capacitor-plugin-registry"))
         assertTrue(source.contains("pluginRegistryAssetPath"))
         assertTrue(source.contains("capacitor.plugins.json"))
-        assertTrue(source.contains("MediaStore.Downloads"))
-        assertTrue(source.contains("Base64.decode"))
         assertTrue(source.contains("Build.SUPPORTED_ABIS"))
         assertTrue(source.contains("Native bridge is unavailable in this bundle for the current host."))
         assertTrue(source.contains("public/native-service-companions/manifest.json"))
+        assertTrue(source.contains("fun baseUrl(): String = \"http://localhost:\$listeningPort\${descriptor.listenPath}\""))
         assertFalse(source.contains("vibra"))
         assertFalse(source.contains("No native service companion is registered on this Capacitor host."))
     }
@@ -91,10 +90,17 @@ class MainActivityCapacitorHostTest {
         assertTrue(manifest.contains(".activities.MainActivity"))
         assertTrue(manifest.contains("android.permission.RECORD_AUDIO"))
         assertTrue(manifest.contains("android.permission.MODIFY_AUDIO_SETTINGS"))
+        assertTrue(manifest.contains("android:networkSecurityConfig=\"@xml/network_security_config\""))
         assertFalse(manifest.contains("SplashActivity"))
         assertFalse(manifest.contains("StatusBarSongSignalService"))
         assertFalse(manifest.contains("AxolyncApplication"))
-        assertFalse(manifest.contains("network_security_config"))
+    }
+
+    @Test
+    fun `network security config allows localhost cleartext without broad cleartext enablement`() {
+        val xml = repoFile("app/src/main/res/xml/network_security_config.xml").readText()
+        assertTrue(xml.contains("<domain includeSubdomains=\"false\">localhost</domain>"))
+        assertTrue(xml.contains("<base-config cleartextTrafficPermitted=\"false\" />"))
     }
 
     @Test

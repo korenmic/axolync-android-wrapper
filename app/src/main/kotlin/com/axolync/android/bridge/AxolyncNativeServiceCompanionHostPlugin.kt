@@ -156,7 +156,7 @@ private class ShazamDiscoveryLoopbackServer(
     private val logger: NativeBridgeDiagnosticLogger
 ) : NanoHTTPD("127.0.0.1", 0) {
 
-    fun baseUrl(): String = "http://127.0.0.1:$listeningPort${descriptor.listenPath}"
+    fun baseUrl(): String = "http://localhost:$listeningPort${descriptor.listenPath}"
 
     override fun serve(session: IHTTPSession): Response {
         logger(
