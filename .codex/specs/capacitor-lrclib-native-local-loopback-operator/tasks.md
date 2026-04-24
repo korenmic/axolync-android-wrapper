@@ -1,6 +1,6 @@
 # Implementation Plan
 
-- [ ] 1. Add Android operator-kind dispatch for LRCLIB.
+- [x] 1. Add Android operator-kind dispatch for LRCLIB.
   - Register `lrclib-local-loopback-v1` separately from `shazam-discovery-loopback-v1`.
   - Preserve existing Vibra/Shazam behavior unchanged.
   - Return explicit unsupported diagnostics for unknown operator kinds.

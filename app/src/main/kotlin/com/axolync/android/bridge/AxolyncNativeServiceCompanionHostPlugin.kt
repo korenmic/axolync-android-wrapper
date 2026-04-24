@@ -23,6 +23,8 @@ private const val CAPACITOR_HOST_PLATFORM = "android"
 private const val ASSET_MANIFEST_PATH = "public/native-service-companions/manifest.json"
 private const val UNSUPPORTED_BUNDLE_MESSAGE = "Native bridge is unavailable in this bundle for the current host."
 private const val MAX_NATIVE_BRIDGE_DIAGNOSTICS = 200
+private const val OPERATOR_KIND_SHAZAM_DISCOVERY = "shazam-discovery-loopback-v1"
+private const val OPERATOR_KIND_LRCLIB_LOCAL = "lrclib-local-loopback-v1"
 private val LOOPBACK_CORS_HEADERS = mapOf(
     "Access-Control-Allow-Origin" to "*",
     "Access-Control-Allow-Methods" to "GET, OPTIONS",
@@ -74,11 +76,17 @@ private data class NativeBridgeDiagnosticEntry(
     val details: Map<String, Any?>?
 )
 
+private interface NativeBridgeLoopbackServer {
+    fun baseUrl(): String
+    fun startServer()
+    fun stopServer()
+}
+
 private class NativeBridgeRuntimeOperator(
     private val registration: NativeBridgeRegistration,
     private val logger: NativeBridgeDiagnosticLogger
 ) {
-    private var loopbackServer: ShazamDiscoveryLoopbackServer? = null
+    private var loopbackServer: NativeBridgeLoopbackServer? = null
 
     fun start() {
         if (loopbackServer != null) {
@@ -100,8 +108,8 @@ private class NativeBridgeRuntimeOperator(
             "runtime-operator.start.requested",
             mapOf("entrypoint" to registration.entrypoint)
         )
-        val server = ShazamDiscoveryLoopbackServer(registration, registration.operator, logger)
-        server.start(NanoHTTPD.SOCKET_READ_TIMEOUT, false)
+        val server = createLoopbackServer()
+        server.startServer()
         loopbackServer = server
         logger(
             "runtime-operator",
@@ -113,9 +121,36 @@ private class NativeBridgeRuntimeOperator(
         )
     }
 
+    private fun createLoopbackServer(): NativeBridgeLoopbackServer {
+        val operatorKind = registration.operator.runtimeOperatorKind
+        logger(
+            "runtime-operator",
+            "info",
+            registration.addonId,
+            registration.companionId,
+            "runtime-operator.dispatch.selected",
+            mapOf("runtimeOperatorKind" to operatorKind)
+        )
+        return when (operatorKind) {
+            OPERATOR_KIND_SHAZAM_DISCOVERY -> ShazamDiscoveryLoopbackServer(registration, registration.operator, logger)
+            OPERATOR_KIND_LRCLIB_LOCAL -> LrclibLocalLoopbackServer(registration, registration.operator, logger)
+            else -> {
+                logger(
+                    "runtime-operator",
+                    "error",
+                    registration.addonId,
+                    registration.companionId,
+                    "runtime-operator.dispatch.unsupported",
+                    mapOf("runtimeOperatorKind" to operatorKind)
+                )
+                throw IllegalArgumentException("Unsupported runtime operator kind \"$operatorKind\".")
+            }
+        }
+    }
+
     fun stop() {
         val baseUrl = loopbackServer?.baseUrl()
-        loopbackServer?.stop()
+        loopbackServer?.stopServer()
         loopbackServer = null
         logger(
             "runtime-operator",
@@ -154,9 +189,17 @@ private class ShazamDiscoveryLoopbackServer(
     private val registration: NativeBridgeRegistration,
     private val descriptor: NativeBridgeOperatorDescriptor,
     private val logger: NativeBridgeDiagnosticLogger
-) : NanoHTTPD("127.0.0.1", 0) {
+) : NanoHTTPD("127.0.0.1", 0), NativeBridgeLoopbackServer {
 
-    fun baseUrl(): String = "http://127.0.0.1:$listeningPort${descriptor.listenPath}"
+    override fun baseUrl(): String = "http://127.0.0.1:$listeningPort${descriptor.listenPath}"
+
+    override fun startServer() {
+        start(SOCKET_READ_TIMEOUT, false)
+    }
+
+    override fun stopServer() {
+        stop()
+    }
 
     override fun serve(session: IHTTPSession): Response {
         logger(
@@ -361,6 +404,31 @@ private class ShazamDiscoveryLoopbackServer(
             return null
         }
         return values[Random.nextInt(values.size)]
+    }
+}
+
+private class LrclibLocalLoopbackServer(
+    private val registration: NativeBridgeRegistration,
+    private val descriptor: NativeBridgeOperatorDescriptor,
+    private val logger: NativeBridgeDiagnosticLogger
+) : NanoHTTPD("127.0.0.1", 0), NativeBridgeLoopbackServer {
+
+    override fun baseUrl(): String = "http://127.0.0.1:$listeningPort${descriptor.listenPath.ifEmpty { "/api" }}"
+
+    override fun startServer() {
+        logger(
+            "runtime-operator",
+            "error",
+            registration.addonId,
+            registration.companionId,
+            "runtime-operator.lrclib.start.not-ready",
+            mapOf("runtimeOperatorKind" to descriptor.runtimeOperatorKind)
+        )
+        throw UnsupportedOperationException("Android LRCLIB native loopback support is registered but not fully implemented yet.")
+    }
+
+    override fun stopServer() {
+        stop()
     }
 }
 
