@@ -83,13 +83,40 @@ function copyDirectoryDeterministically(sourceDir, targetDir) {
   }
 }
 
-function restageDirectoryDeterministically(rootDir) {
+function waitForWindowsFsSettle(ms = 150) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
+function retryFsMutation(action, label, attempts = 6) {
+  let lastError = null;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      return action();
+    } catch (error) {
+      lastError = error;
+      const code = String(error?.code || '');
+      if (!['EPERM', 'EBUSY', 'ENOTEMPTY'].includes(code) || attempt === attempts - 1) {
+        break;
+      }
+      waitForWindowsFsSettle(100 + (attempt * 100));
+    }
+  }
+  throw lastError || new Error(`Filesystem mutation failed: ${label}`);
+}
+
+export function restageDirectoryDeterministically(rootDir) {
   if (!rootDir || !fs.existsSync(rootDir)) return;
   const tempDir = `${rootDir}.axolync-deterministic`;
-  fs.rmSync(tempDir, { recursive: true, force: true });
+  retryFsMutation(() => fs.rmSync(tempDir, { recursive: true, force: true }), `remove temp ${tempDir}`);
   copyDirectoryDeterministically(rootDir, tempDir);
-  fs.rmSync(rootDir, { recursive: true, force: true });
-  fs.renameSync(tempDir, rootDir);
+  retryFsMutation(() => fs.rmSync(rootDir, { recursive: true, force: true }), `remove root ${rootDir}`);
+  try {
+    retryFsMutation(() => fs.renameSync(tempDir, rootDir), `rename ${tempDir} to ${rootDir}`);
+  } catch (error) {
+    fs.mkdirSync(rootDir, { recursive: true });
+    copyDirectoryDeterministically(tempDir, rootDir);
+    retryFsMutation(() => fs.rmSync(tempDir, { recursive: true, force: true }), `remove temp ${tempDir}`);
+  }
 }
 
 function buildBuildFlavorSnippet(buildFlavor) {

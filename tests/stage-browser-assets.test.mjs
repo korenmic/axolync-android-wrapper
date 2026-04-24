@@ -4,7 +4,10 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
-import { stageBrowserAssets } from '../scripts/stage-browser-assets.mjs';
+import {
+  restageDirectoryDeterministically,
+  stageBrowserAssets,
+} from '../scripts/stage-browser-assets.mjs';
 
 function writeFile(filePath, contents) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -14,6 +17,22 @@ function writeFile(filePath, contents) {
 const capacitorConfig = JSON.parse(
   fs.readFileSync(path.join(process.cwd(), 'capacitor.config.json'), 'utf8'),
 );
+
+test('restageDirectoryDeterministically rewrites a staged directory without stale entries', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'axolync-android-restage-'));
+  const stagedDir = path.join(tempRoot, 'preinstalled');
+  try {
+    writeFile(path.join(stagedDir, 'b.txt'), 'b');
+    writeFile(path.join(stagedDir, 'a.txt'), 'a');
+
+    restageDirectoryDeterministically(stagedDir);
+
+    assert.deepEqual(fs.readdirSync(stagedDir), ['a.txt', 'b.txt']);
+    assert.equal(fs.existsSync(`${stagedDir}.axolync-deterministic`), false);
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
 
 test('stageBrowserAssets copies demo plugins, demo player, and browser dist payload into capacitor public assets', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'axolync-android-stage-assets-'));
