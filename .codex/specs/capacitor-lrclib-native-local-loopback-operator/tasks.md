@@ -23,7 +23,7 @@
   - Return `loopback-http-base-url` connection data to the WebView bridge.
   - Add CORS/headers needed for WebView fetch compatibility.
 
-- [ ] 5. Add Android LRCLIB native diagnostics.
+- [x] 5. Add Android LRCLIB native diagnostics.
   - Emit lifecycle diagnostics for registration, payload, DB deploy, SQLite open, loopback bind, connection resolution, route request, and failure source.
   - Include local hit/miss/plain-only result classification.
   - Surface diagnostics to the browser/debug archive path used by native companion logs.

@@ -1,5 +1,6 @@
 package com.axolync.android.bridge
 
+import com.axolync.android.logging.RuntimeNativeLogStore
 import android.content.Context
 import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
@@ -199,6 +200,14 @@ private class NativeBridgeRuntimeOperator(
 
     fun getConnection(): JSObject? {
         val server = loopbackServer ?: return null
+        logger(
+            "runtime-operator",
+            "info",
+            registration.addonId,
+            registration.companionId,
+            "companion.connection.resolved",
+            mapOf("kind" to "loopback-http-base-url", "baseUrl" to server.baseUrl())
+        )
         return JSObject().apply {
             put("kind", "loopback-http-base-url")
             put("baseUrl", server.baseUrl())
@@ -543,6 +552,14 @@ private class LrclibLocalLoopbackServer(
             throw IllegalStateException("Unsupported LRCLIB DB deploy policy: ${dbConfig.deployPolicy}")
         }
         val packagedAssetPath = packagedNativeAssetPath(registration.entrypoint, dbConfig.packagedAssetPath.ifEmpty { dbConfig.compressedAssetPath })
+        logger(
+            "runtime-operator",
+            "info",
+            registration.addonId,
+            registration.companionId,
+            "lrclib.db.asset.resolved",
+            mapOf("assetPath" to packagedAssetPath, "deployPolicy" to dbConfig.deployPolicy)
+        )
         val compressedSha256 = sha256Asset(context, packagedAssetPath)
         val deployedFileName = dbConfig.deployedFileName.ifEmpty { "db.sqlite3" }
         val deployDir = File(
@@ -621,11 +638,13 @@ private class LrclibNativeQueryEngine(
         }
         return try {
             val record = querySingle(trackName, artistName, albumName, duration)
-            if (record == null) {
+            val response = if (record == null) {
                 notFoundResponse("subset-miss")
             } else {
                 recordResponse(record)
             }
+            logQueryCompleted("/api/get", response)
+            response
         } catch (error: Throwable) {
             logger(
                 "runtime-operator",
@@ -649,7 +668,7 @@ private class LrclibNativeQueryEngine(
         }
         return try {
             val records = querySearch(q, trackName, artistName, albumName)
-            if (records.isEmpty()) {
+            val response = if (records.isEmpty()) {
                 LrclibQueryResponse(Response.Status.OK, JSONArray().toString(), "subset-miss")
             } else {
                 val classification = classifyRecord(records.first())
@@ -659,6 +678,8 @@ private class LrclibNativeQueryEngine(
                     classification
                 )
             }
+            logQueryCompleted("/api/search", response)
+            response
         } catch (error: Throwable) {
             logger(
                 "runtime-operator",
@@ -737,6 +758,14 @@ private class LrclibNativeQueryEngine(
     private fun queryJsonRows(sql: String, args: Array<String>, limit: Int): List<JSONObject> {
         val db = SQLiteDatabase.openDatabase(dbFile.absolutePath, null, SQLiteDatabase.OPEN_READONLY)
         return try {
+            logger(
+                "runtime-operator",
+                "info",
+                registration.addonId,
+                registration.companionId,
+                "lrclib.sqlite.open.completed",
+                mapOf("dbPath" to dbFile.absolutePath, "readOnly" to true)
+            )
             db.rawQuery(sql, args).use { cursor ->
                 buildList {
                     while (cursor.moveToNext() && size < limit) {
@@ -747,6 +776,17 @@ private class LrclibNativeQueryEngine(
         } finally {
             db.close()
         }
+    }
+
+    private fun logQueryCompleted(route: String, response: LrclibQueryResponse) {
+        logger(
+            "runtime-operator",
+            if (response.status.requestStatus in 200..399) "info" else "warn",
+            registration.addonId,
+            registration.companionId,
+            "lrclib.sqlite.query.completed",
+            mapOf("route" to route, "classification" to response.classification, "status" to response.status.requestStatus)
+        )
     }
 
     private fun cursorToLrclibRecord(cursor: Cursor): JSONObject =
@@ -1016,7 +1056,10 @@ class AxolyncNativeServiceCompanionHostPlugin : Plugin() {
                 addonId = addonId,
                 companionId = companionId,
                 event = "companion.start.failed",
-                details = mapOf("error" to lastErrorState[key])
+                details = mapOf(
+                    "error" to lastErrorState[key],
+                    "failureSource" to "native-runtime-start"
+                )
             )
         }
         call.resolve(buildStatusEnvelope(addonId, companionId, null))
@@ -1292,6 +1335,12 @@ class AxolyncNativeServiceCompanionHostPlugin : Plugin() {
                 diagnostics.subList(0, diagnostics.size - MAX_NATIVE_BRIDGE_DIAGNOSTICS).clear()
             }
         }
+        RuntimeNativeLogStore.record(
+            source = source,
+            level = level,
+            message = event,
+            details = details?.toJsonObject()?.toString()
+        )
     }
 
     private fun buildDiagnosticsEnvelope(): JSObject {
@@ -1360,7 +1409,19 @@ class AxolyncNativeServiceCompanionHostPlugin : Plugin() {
             if (addonId.isEmpty() || companionId.isEmpty() || entrypoint.isEmpty()) {
                 continue
             }
-            val descriptorText = readAssetText("public/native-service-companions/$entrypoint") ?: continue
+            val descriptorAssetPath = "public/native-service-companions/$entrypoint"
+            val descriptorText = readAssetText(descriptorAssetPath)
+            if (descriptorText == null) {
+                appendDiagnostic(
+                    source = "wrapper-host",
+                    level = "warn",
+                    addonId = addonId,
+                    companionId = companionId,
+                    event = "host.registration.descriptor-missing",
+                    details = mapOf("entrypoint" to entrypoint, "assetPath" to descriptorAssetPath)
+                )
+                continue
+            }
             val descriptor = parseOperatorDescriptor(JSONObject(descriptorText))
             resolved[companionKey(addonId, companionId)] = NativeBridgeRegistration(
                 addonId = addonId,
@@ -1369,6 +1430,18 @@ class AxolyncNativeServiceCompanionHostPlugin : Plugin() {
                 wrapper = wrapper,
                 entrypoint = entrypoint,
                 operator = descriptor
+            )
+            appendDiagnostic(
+                source = "wrapper-host",
+                level = "info",
+                addonId = addonId,
+                companionId = companionId,
+                event = "host.registration.loaded",
+                details = mapOf(
+                    "entrypoint" to entrypoint,
+                    "runtimeOperatorKind" to descriptor.runtimeOperatorKind,
+                    "hasDbConfig" to (descriptor.db != null)
+                )
             )
         }
         appendDiagnostic(
