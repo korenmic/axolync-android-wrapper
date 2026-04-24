@@ -28,6 +28,24 @@ class MainActivityCapacitorHostTest {
     }
 
     @Test
+    fun `main activity suppresses ordinary WebView text selection while preserving editable and debug copy surfaces`() {
+        val source = repoFile("app/src/main/kotlin/com/axolync/android/activities/MainActivity.kt").readText()
+        assertTrue(source.contains("installAndroidTextSelectionPolicy"))
+        assertTrue(source.contains("evaluateJavascript(ANDROID_TEXT_SELECTION_POLICY_SCRIPT"))
+        assertTrue(source.contains("__AXOLYNC_ANDROID_TEXT_SELECTION_POLICY_INSTALLED__"))
+        assertTrue(source.contains("-webkit-user-select: none"))
+        assertTrue(source.contains("document.addEventListener(\"selectstart\", suppressIfOrdinaryText, true)"))
+        assertTrue(source.contains("document.addEventListener(\"contextmenu\", suppressIfOrdinaryText, true)"))
+        assertTrue(source.contains("isAllowedSelectionNode(selection.anchorNode)"))
+        assertTrue(source.contains("input"))
+        assertTrue(source.contains("textarea"))
+        assertTrue(source.contains("[contenteditable]"))
+        assertTrue(source.contains("[data-allow-native-text-selection]"))
+        assertTrue(source.contains("#debug-log-output"))
+        assertFalse(source.contains("isLongClickable = false"))
+    }
+
+    @Test
     fun `dedicated Capacitor debug archive plugin owns the Android-visible save capability`() {
         val source = repoFile("app/src/main/kotlin/com/axolync/android/bridge/AxolyncDebugArchiveSavePlugin.kt").readText()
         assertTrue(source.contains("@CapacitorPlugin(name = \"AxolyncDebugArchiveSave\")"))

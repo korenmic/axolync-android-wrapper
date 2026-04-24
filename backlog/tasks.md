@@ -9,7 +9,7 @@
   - Preserve truthful Android-visible save semantics and the structured `{ success, uri, error }` result contract for browser.
   - Keep the operator-facing target explicit: a successful Android save should return a truthful URI/location for the written archive rather than silently falling back to a best-effort WebView blob download.
 
-- [ ] Block Android WebView text selection and contextual copy/translate menus outside explicitly editable or debug-copy surfaces.
+- [x] Block Android WebView text selection and contextual copy/translate menus outside explicitly editable or debug-copy surfaces.
   - The shipped APK currently allows long-press text selection and the Android copy/translate toolbar on app UI text, which violates the wrapper interaction policy.
   - Enforce the Android-specific suppression in the Capacitor host/WebView layer where possible, and use browser-side wrapper-scoped CSS/event guards only when needed.
   - Do not break normal typing/selecting inside real text inputs or any explicit debug-log copy/export affordance that Axolync intentionally provides.
