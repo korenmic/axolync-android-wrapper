@@ -28,7 +28,7 @@
   - Include local hit/miss/plain-only result classification.
   - Surface diagnostics to the browser/debug archive path used by native companion logs.
 
-- [ ] 6. Add non-device regression coverage.
+- [x] 6. Add non-device regression coverage.
   - Test descriptor parsing and dispatch.
   - Test DB deploy/reuse/replacement with fixture assets.
   - Test SQLite query fixtures for `/api/get` and `/api/search`.

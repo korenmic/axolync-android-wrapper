@@ -8,6 +8,12 @@ const DEBUG_DEMO_ENTRIES = [
   'assets/public/demo/assets/house_of_the_rising_sun_instrumental.ogg',
 ];
 
+const LRCLIB_NATIVE_REQUIRED_ENTRIES = [
+  'assets/public/native-service-companions/manifest.json',
+  'assets/public/native-service-companions/axolync-addon-lrclib/lrclib_local/capacitor/operator.json',
+  'assets/public/native-service-companions/axolync-addon-lrclib/lrclib_local/capacitor/native/shared/lrclib_local/assets/db.sqlite3.br',
+];
+
 const ZIP_LIST_POWERSHELL = [
   "$ErrorActionPreference = 'Stop'",
   'Add-Type -AssemblyName System.IO.Compression.FileSystem',
@@ -133,11 +139,28 @@ export function assertDemoAssetState(zipEntries, shouldIncludeDemoAssets, resolv
   }
 }
 
+export function assertLrclibNativeAssetState(zipEntries, shouldIncludeLrclibNative, resolved) {
+  const hasAnyLrclibNativeEntry = zipEntries.some((entry) => (
+    entry.startsWith('assets/public/native-service-companions/axolync-addon-lrclib/lrclib_local/capacitor/')
+  ));
+  if (!shouldIncludeLrclibNative && !hasAnyLrclibNativeEntry) return;
+  if (!shouldIncludeLrclibNative && hasAnyLrclibNativeEntry) {
+    throw new Error(`APK unexpectedly ships LRCLIB native companion assets in a remote-only profile: ${resolved}`);
+  }
+  for (const expectedEntry of LRCLIB_NATIVE_REQUIRED_ENTRIES) {
+    if (!zipEntries.includes(expectedEntry)) {
+      throw new Error(`APK is missing required LRCLIB native asset in native-capable profile: ${resolved} (${expectedEntry})`);
+    }
+  }
+}
+
 function verifyApk(apkPath) {
   const resolved = path.resolve(apkPath);
   const expectedBuildFlavor = detectExpectedBuildFlavor(resolved);
   const expectedArtifactFlavor = detectExpectedArtifactFlavor(resolved);
   const shouldIncludeDemoAssets = expectedArtifactFlavor === 'demo' || expectedBuildFlavor === 'debug';
+  const shouldIncludeLrclibNative = path.basename(resolved).toLowerCase().includes('lrclib-native')
+    || resolved.replaceAll('\\', '/').toLowerCase().includes('/lrclib-native/');
   const indexHtml = readZipEntry(resolved, 'assets/public/index.html');
   const syncWorker = readZipEntry(resolved, 'assets/public/workers/syncengineBridgeWorker.js');
   const lyricWorker = readZipEntry(resolved, 'assets/public/workers/lyricflowBridgeWorker.js');
@@ -177,6 +200,7 @@ function verifyApk(apkPath) {
     throw new Error(`APK unexpectedly ships legacy axolync-browser asset tree: ${resolved}`);
   }
   assertDemoAssetState(zipEntries, shouldIncludeDemoAssets, resolved);
+  assertLrclibNativeAssetState(zipEntries, shouldIncludeLrclibNative, resolved);
 
   console.log(`[verify-apk-assets] ok ${resolved}`);
 }
