@@ -14,3 +14,9 @@
   - Enforce the Android-specific suppression in the Capacitor host/WebView layer where possible, and use browser-side wrapper-scoped CSS/event guards only when needed.
   - Do not break normal typing/selecting inside real text inputs or any explicit debug-log copy/export affordance that Axolync intentionally provides.
   - Add Android wrapper proof that long-press selection/contextual action mode is suppressed on ordinary app text while input fields still behave correctly.
+
+- [ ] Classify Capacitor loopback route mismatches that return HTML to native runtime callers.
+  - Diagnose whether Android Capacitor native operator requests can be routed to the wrong WebView asset/server path and return `<!doctype` HTML instead of native JSON.
+  - Add Android-owned diagnostics that distinguish cleartext/mixed-content blocks, unreachable loopback, wrapper asset-server HTML, route miss, and operator-side request handling.
+  - Fix Android routing only if the HTML response originates from Capacitor/WebView transport or wrapper route publication, without weakening the working Tauri loopback shape.
+  - Add proof that native runtime loopback calls either reach the intended operator route or produce a classified Android transport failure.
