@@ -35,7 +35,8 @@ private const val OPERATOR_KIND_LRCLIB_LOCAL = "lrclib-local-loopback-v1"
 private val LOOPBACK_CORS_HEADERS = mapOf(
     "Access-Control-Allow-Origin" to "*",
     "Access-Control-Allow-Methods" to "GET, OPTIONS",
-    "Access-Control-Allow-Headers" to "Accept, Content-Type"
+    "Access-Control-Allow-Headers" to "Accept, Content-Type, x-axolync-lrclib-local-result",
+    "Access-Control-Expose-Headers" to "x-axolync-lrclib-local-result"
 )
 
 private typealias NativeBridgeDiagnosticLogger = (
@@ -71,7 +72,8 @@ private data class NativeBridgeOperatorDescriptor(
     val geo: NativeBridgeOperatorGeo,
     val userAgents: List<String>,
     val timezones: List<String>,
-    val db: NativeBridgeOperatorDbConfig?
+    val db: NativeBridgeOperatorDbConfig?,
+    val localResultHeader: String
 )
 
 private data class NativeBridgeRegistration(
@@ -460,21 +462,78 @@ private class LrclibLocalLoopbackServer(
         )
         logger(
             "runtime-operator",
-            "error",
+            "info",
             registration.addonId,
             registration.companionId,
-            "runtime-operator.lrclib.start.not-ready",
+            "runtime-operator.lrclib.start.ready",
             mapOf(
                 "runtimeOperatorKind" to descriptor.runtimeOperatorKind,
                 "dbDeployed" to (deployment?.dbFile?.absolutePath ?: ""),
                 "dbReused" to (deployment?.reused ?: false)
             )
         )
-        throw UnsupportedOperationException("Android LRCLIB native loopback support is registered but not fully implemented yet.")
+        start(SOCKET_READ_TIMEOUT, false)
+        logger(
+            "runtime-operator",
+            "info",
+            registration.addonId,
+            registration.companionId,
+            "runtime-operator.lrclib.loopback.bound",
+            mapOf("baseUrl" to baseUrl())
+        )
     }
 
     override fun stopServer() {
         stop()
+    }
+
+    override fun serve(session: IHTTPSession): Response {
+        logger(
+            "runtime-operator",
+            "info",
+            registration.addonId,
+            registration.companionId,
+            "lrclib.loopback.request.received",
+            mapOf("method" to session.method.name, "path" to session.uri)
+        )
+        if (session.method == Method.OPTIONS) {
+            return jsonResponse(Response.Status.NO_CONTENT, "", "not-applicable")
+        }
+        val engine = queryEngine
+            ?: return jsonResponse(
+                Response.Status.INTERNAL_ERROR,
+                JSONObject().put("ok", false).put("classification", "sqlite-not-ready").put("error", "LRCLIB query engine is not ready.").toString(),
+                "sqlite-not-ready"
+            )
+        val response = when (session.uri) {
+            "${descriptor.listenPath.ifEmpty { "/api" }}/get" -> engine.handleGet(session.parameters)
+            "${descriptor.listenPath.ifEmpty { "/api" }}/search" -> engine.handleSearch(session.parameters)
+            else -> LrclibQueryResponse(
+                Response.Status.NOT_FOUND,
+                JSONObject()
+                    .put("ok", false)
+                    .put("classification", "loopback-route-miss")
+                    .put("error", "Unknown LRCLIB local route.")
+                    .toString(),
+                "loopback-route-miss"
+            )
+        }
+        logger(
+            "runtime-operator",
+            if (response.status.requestStatus in 200..399) "info" else "warn",
+            registration.addonId,
+            registration.companionId,
+            "lrclib.loopback.request.completed",
+            mapOf("path" to session.uri, "classification" to response.classification, "status" to response.status.requestStatus)
+        )
+        return jsonResponse(response.status, response.body, response.classification)
+    }
+
+    private fun jsonResponse(status: Response.Status, body: String, classification: String): Response {
+        return newFixedLengthResponse(status, "application/json; charset=utf-8", body).apply {
+            LOOPBACK_CORS_HEADERS.forEach { (name, value) -> addHeader(name, value) }
+            addHeader(descriptor.localResultHeader.ifEmpty { "x-axolync-lrclib-local-result" }, classification)
+        }
     }
 
     private fun deployLrclibDbOnce(): LrclibDbDeploymentResult {
@@ -1326,6 +1385,7 @@ class AxolyncNativeServiceCompanionHostPlugin : Plugin() {
     private fun parseOperatorDescriptor(parsed: JSONObject): NativeBridgeOperatorDescriptor {
         val geo = parsed.optJSONObject("geo") ?: JSONObject()
         val db = parsed.optJSONObject("db")
+        val diagnostics = parsed.optJSONObject("diagnostics")
         return NativeBridgeOperatorDescriptor(
             runtimeOperatorKind = parsed.optString("runtime_operator_kind").trim(),
             listenPath = parsed.optString("listen_path").trim(),
@@ -1348,7 +1408,10 @@ class AxolyncNativeServiceCompanionHostPlugin : Plugin() {
                     deployPolicy = it.optString("deployPolicy").trim(),
                     sqliteHeaderRequired = it.optBoolean("sqliteHeaderRequired", true)
                 )
-            }
+            },
+            localResultHeader = parsed.optString("local_result_header").trim()
+                .ifEmpty { diagnostics?.optString("localResultHeader")?.trim().orEmpty() }
+                .ifEmpty { "x-axolync-lrclib-local-result" }
         )
     }
 

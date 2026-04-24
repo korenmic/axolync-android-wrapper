@@ -17,7 +17,7 @@
   - Implement `/api/search` parameter handling and compatible JSON response behavior.
   - Normalize local hit, subset miss, plain-only/no-synced, and query error results.
 
-- [ ] 4. Serve LRCLIB over Android loopback HTTP.
+- [x] 4. Serve LRCLIB over Android loopback HTTP.
   - Bind a local server on `127.0.0.1` with an available port.
   - Route `/api/get` and `/api/search` to the SQLite query layer.
   - Return `loopback-http-base-url` connection data to the WebView bridge.
