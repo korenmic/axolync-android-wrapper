@@ -38,3 +38,11 @@
 - [x] 7. Document final Android proof limits.
   - State that first implementation is best-effort without approved emulator/device automation.
   - Add expected manual/device proof steps and required diagnostics for the first native-capable Android artifact trial.
+
+- [x] 8. Fix LRCLIB-native Android APK launch regression with native payload present.
+  - Treat the latest 2026-04-26 manual report as the repro: the normal APK launches, but the LRCLIB-native APK does not start the app at all.
+  - Audit Capacitor startup, native-service companion registry parsing, nested LRCLIB addon zip handling, DB deployment, Brotli/SQLite initialization, and loopback server preparation for startup-fatal work that should be lazy or failure-contained.
+  - Ensure the app shell always launches even if LRCLIB native cannot deploy or start; the LRCLIB native bridge must become unavailable with diagnostics while remote LRCLIB fallback remains usable.
+  - Confirm the Android runtime can locate the single authoritative packaged DB location after builder dedupe, or truthfully reports the native bridge unavailable without crashing.
+  - Add non-device regression coverage for registry/payload startup safety and APK validation, and document any remaining proof gap that still needs real device/emulator validation.
+  - Preserve working normal APK startup and Vibra native companion behavior.

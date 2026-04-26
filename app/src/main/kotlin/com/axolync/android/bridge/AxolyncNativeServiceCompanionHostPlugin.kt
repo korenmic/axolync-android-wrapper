@@ -17,8 +17,6 @@ import android.os.Build
 import org.brotli.dec.BrotliInputStream
 import org.json.JSONArray
 import org.json.JSONObject
-import java.io.ByteArrayInputStream
-import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileNotFoundException
 import java.io.InputStream
@@ -113,6 +111,19 @@ private data class PackagedNativeAssetRef(
     val displayPath: String,
     val openInput: () -> InputStream
 )
+
+private class ClosingZipEntryInputStream(
+    private val zip: ZipInputStream
+) : InputStream() {
+    override fun read(): Int = zip.read()
+
+    override fun read(buffer: ByteArray, offset: Int, length: Int): Int =
+        zip.read(buffer, offset, length)
+
+    override fun close() {
+        zip.close()
+    }
+}
 
 private data class LrclibQueryResponse(
     val status: Response.Status,
@@ -927,7 +938,9 @@ private fun zipAssetEntryExists(context: Context, zipAssetPath: String, entryNam
             ZipInputStream(zipInput).use { zip ->
                 while (true) {
                     val entry = zip.nextEntry ?: break
-                    if (!entry.isDirectory && entry.name == entryName) return@use true
+                    if (!entry.isDirectory && entry.name == entryName) {
+                        return true
+                    }
                 }
                 false
             }
@@ -937,17 +950,22 @@ private fun zipAssetEntryExists(context: Context, zipAssetPath: String, entryNam
     }
 
 private fun openZipAssetEntry(context: Context, zipAssetPath: String, entryName: String): InputStream {
-    context.assets.open(zipAssetPath).use { zipInput ->
-        ZipInputStream(zipInput).use { zip ->
-            while (true) {
-                val entry = zip.nextEntry ?: break
-                if (entry.isDirectory || entry.name != entryName) continue
-                val output = ByteArrayOutputStream()
-                zip.copyTo(output)
-                return ByteArrayInputStream(output.toByteArray())
-            }
+    val zip = ZipInputStream(context.assets.open(zipAssetPath))
+    try {
+        while (true) {
+            val entry = zip.nextEntry ?: break
+            if (entry.isDirectory || entry.name != entryName) continue
+            return ClosingZipEntryInputStream(zip)
         }
+    } catch (error: Throwable) {
+        try {
+            zip.close()
+        } catch (_: Throwable) {
+            // Preserve the original failure.
+        }
+        throw error
     }
+    zip.close()
     throw FileNotFoundException("Missing zip entry $entryName in $zipAssetPath")
 }
 
