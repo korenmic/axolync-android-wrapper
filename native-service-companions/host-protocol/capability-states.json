@@ -1,0 +1,39 @@
+{
+  "states": [
+    {
+      "id": "unsupported",
+      "statusState": "unsupported",
+      "available": false,
+      "enabled": false,
+      "lastErrorSource": "host"
+    },
+    {
+      "id": "unavailable",
+      "statusState": "unsupported",
+      "available": false,
+      "enabled": false,
+      "lastErrorSource": "package"
+    },
+    {
+      "id": "refused",
+      "statusState": "refused",
+      "available": false,
+      "enabled": false,
+      "lastErrorSource": "trust-policy"
+    },
+    {
+      "id": "startup-failed",
+      "statusState": "error",
+      "available": false,
+      "enabled": false,
+      "lastErrorSource": "runtime"
+    },
+    {
+      "id": "running",
+      "statusState": "running",
+      "available": true,
+      "enabled": true,
+      "lastErrorSource": null
+    }
+  ]
+}

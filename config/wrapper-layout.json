@@ -3,6 +3,11 @@
   "targetRepo": "axolync-platform-wrapper",
   "compatibilityMode": true,
   "wrappersRoot": "wrappers",
+  "nativeServiceCompanions": {
+    "hostProtocol": "native-service-companions/host-protocol",
+    "deployment": "native-service-companions/deployment",
+    "diagnostics": "native-service-companions/diagnostics"
+  },
   "families": {
     "capacitor": {
       "root": "wrappers/capacitor",

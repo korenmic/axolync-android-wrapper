@@ -18,7 +18,7 @@
   - Keep compatibility path handling while builder still consumes old repo/path assumptions.
   - _Requirements: 4.1, 4.2, 4.4, 6.4_
 
-- [ ] 4. Move generic native service companion host concepts into wrapper-owned shared areas.
+- [x] 4. Move generic native service companion host concepts into wrapper-owned shared areas.
   - Organize shared host-protocol, deployment, diagnostics, and capability-state code away from Android-only naming.
   - Keep addon-specific Vibra and LRCLIB payload descriptors/assets sourced from addon repos.
   - Add tests for unsupported, unavailable, refused, startup-failed, and running capability states.
