@@ -1,0 +1,25 @@
+{
+  "layoutVersion": 1,
+  "targetRepo": "axolync-platform-wrapper",
+  "compatibilityMode": true,
+  "wrappersRoot": "wrappers",
+  "families": {
+    "capacitor": {
+      "root": "wrappers/capacitor",
+      "android": {
+        "authorityPath": "wrappers/capacitor/android",
+        "compatibilityProjectRoot": ".",
+        "gradleProjectPath": "app",
+        "assetPublicPath": "app/src/main/assets/public",
+        "nativeSourcePath": "app/src/main/kotlin/com/axolync/android"
+      },
+      "shared": {
+        "authorityPath": "wrappers/capacitor/shared"
+      },
+      "ios": {
+        "authorityPath": "wrappers/capacitor/ios",
+        "support": "placeholder-only"
+      }
+    }
+  }
+}

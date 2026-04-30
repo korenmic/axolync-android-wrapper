@@ -6,7 +6,7 @@
   - Add compatibility notes for any remaining `axolync-android-wrapper` naming.
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 5.1, 5.4_
 
-- [ ] 2. Rehome Android/Capacitor structure under a wrapper-family layout.
+- [x] 2. Rehome Android/Capacitor structure under a wrapper-family layout.
   - Move or wrap existing Android runtime files under `wrappers/capacitor/android` or equivalent.
   - Add shared Capacitor and iOS-placeholder structure without claiming iOS build support.
   - Update path references in scripts/config so Android builds still resolve.
