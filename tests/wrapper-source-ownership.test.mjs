@@ -96,3 +96,22 @@ test('wrapper repo publishes canonical Electron desktop template source', () => 
     assert.equal(fs.existsSync(path.join(repoRoot, relativePath)), true, `missing ${relativePath}`);
   }
 });
+
+test('wrapper-owned native companion host source remains generic and payload-free', () => {
+  const repoRoot = path.resolve(import.meta.dirname, '..');
+  const ownedHostFiles = [
+    'native-service-companions/host-protocol/capability-states.json',
+    'templates/desktop/tauri/src-tauri/src/native_service_companion.rs',
+    'templates/desktop/electron/nativeServiceCompanionHost.cjs',
+    'wrappers/capacitor/android/app/src/main/kotlin/com/axolync/android/bridge/AxolyncNativeServiceCompanionHostPlugin.kt',
+  ];
+  const combined = ownedHostFiles
+    .map((relativePath) => fs.readFileSync(path.join(repoRoot, relativePath), 'utf8'))
+    .join('\n');
+
+  assert.match(combined, /native service companion|NativeServiceCompanion|capability/i);
+  assert.match(combined, /db\.sqlite3/);
+  assert.doesNotMatch(combined, /vibra_proxy|lrclib_local|axolync-addon-vibra|axolync-addon-lrclib/);
+  assert.equal(fs.existsSync(path.join(repoRoot, 'native-service-companions', 'axolync-addon-vibra')), false);
+  assert.equal(fs.existsSync(path.join(repoRoot, 'native-service-companions', 'axolync-addon-lrclib')), false);
+});

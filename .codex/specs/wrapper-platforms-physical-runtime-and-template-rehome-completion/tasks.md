@@ -25,7 +25,7 @@
   - Add tests that fail if the Electron template is missing or placeholder-only.
   - _Requirements: 2.2, 2.3, 2.4, 3.1, 5.3, 6.1_
 
-- [ ] 5. Harden generic native service companion host ownership.
+- [x] 5. Harden generic native service companion host ownership.
   - Ensure wrapper-owned native companion host protocol, deployment, diagnostics, and capability-state files support the desktop and Capacitor templates.
   - Keep Vibra, LRCLIB, and other addon-specific payload files sourced from addon repos only.
   - Add tests or fixtures proving wrapper source owns host glue without duplicating addon payloads.
