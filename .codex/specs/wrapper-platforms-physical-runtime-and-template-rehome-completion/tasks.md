@@ -7,7 +7,7 @@
   - Test that placeholder-only iOS cannot count as runnable support.
   - _Requirements: 1.1, 2.1, 2.2, 2.3, 4.1, 4.2, 5.1, 5.2, 5.3, 5.4_
 
-- [ ] 2. Rehome active Android/Capacitor runtime source under the canonical wrapper family path.
+- [x] 2. Rehome active Android/Capacitor runtime source under the canonical wrapper family path.
   - Move or restructure the active Android app/project source so `wrappers/capacitor/android` is canonical.
   - Preserve Android buildability by converting any required root-level Gradle/Capacitor/script entrypoints into thin shims.
   - Update wrapper layout metadata to identify canonical source paths and shim paths separately.

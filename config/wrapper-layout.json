@@ -1,7 +1,7 @@
 {
   "layoutVersion": 1,
   "targetRepo": "axolync-platform-wrapper",
-  "compatibilityMode": true,
+  "compatibilityMode": false,
   "wrappersRoot": "wrappers",
   "nativeServiceCompanions": {
     "hostProtocol": "native-service-companions/host-protocol",
@@ -13,10 +13,21 @@
       "root": "wrappers/capacitor",
       "android": {
         "authorityPath": "wrappers/capacitor/android",
-        "compatibilityProjectRoot": ".",
-        "gradleProjectPath": "app",
-        "assetPublicPath": "app/src/main/assets/public",
-        "nativeSourcePath": "app/src/main/kotlin/com/axolync/android"
+        "projectRoot": "wrappers/capacitor/android",
+        "gradleProjectPath": "wrappers/capacitor/android/app",
+        "assetPublicPath": "wrappers/capacitor/android/app/src/main/assets/public",
+        "nativeSourcePath": "wrappers/capacitor/android/app/src/main/kotlin/com/axolync/android",
+        "legacyCompatibilityProjectRoot": ".",
+        "legacyCompatibilityMode": "root-shim",
+        "legacyShimPaths": [
+          "app",
+          "build.gradle.kts",
+          "settings.gradle.kts",
+          "capacitor.config.json",
+          "gradle",
+          "gradlew",
+          "gradlew.bat"
+        ]
       },
       "shared": {
         "authorityPath": "wrappers/capacitor/shared"

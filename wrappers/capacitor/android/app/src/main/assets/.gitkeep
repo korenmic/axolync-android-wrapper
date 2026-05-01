@@ -1,0 +1,2 @@
+# This directory will contain the built axolync-browser assets
+# The Gradle build task 'copyAxolyncBrowserAssets' will populate this directory
