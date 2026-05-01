@@ -1,6 +1,6 @@
 # Implementation Plan
 
-- [ ] 1. Add failing structural tests for canonical wrapper source ownership.
+- [x] 1. Add failing structural tests for canonical wrapper source ownership.
   - Test that `wrappers/capacitor/android` contains real Android/Capacitor project source and not only README/config placeholders.
   - Test that wrapper-owned Tauri and Electron template roots exist with required project files.
   - Test that native service companion host glue exists in wrapper-owned paths.
