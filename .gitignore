@@ -42,6 +42,8 @@ local.properties
 # Node modules (if building axolync-browser locally)
 node_modules/
 app/src/main/assets/public/
+**/app/src/main/assets/public/
+app/src/main/assets/capacitor.config.json
 
 # Submodule/symlink - axolync-browser
 /axolync-browser/
