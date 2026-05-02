@@ -28,7 +28,7 @@
   - Update tests and metadata so only `wrappers/desktop/electron/...` is canonical.
   - _Requirements: 1.2, 1.3, 1.4, 3.2, 3.3, 3.4, 4.1, 4.3, 6.1, 6.2_
 
-- [ ] 5. Update wrapper layout metadata and docs for typed topology.
+- [x] 5. Update wrapper layout metadata and docs for typed topology.
   - Rewrite `config/wrapper-layout.json` to describe typed mobile and desktop wrapper families as canonical active source.
   - Clearly separate compatibility aliases from canonical source if any old paths remain for one migration window.
   - Document that `workspace-template` is tracked wrapper-owned source copied into generated workspaces, not an untracked output folder.

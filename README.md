@@ -16,7 +16,7 @@ This README describes the active Capacitor-based Android host introduced by Migr
 
 Treat the embedded-server architecture as archived legacy behavior. The active host path in this repository is now the thin Capacitor shell described below.
 
-Android is one child target under the Capacitor wrapper family. Desktop Tauri and Electron templates are sibling wrapper sources under `templates/desktop/`. Repo-level docs should describe the neutral platform-wrapper authority; Android-specific runtime notes belong under `wrappers/mobile/capacitor/android/`.
+Android is one child target under the Capacitor wrapper family. Desktop Tauri and Electron templates are sibling wrapper sources under `wrappers/desktop/<wrapper>/workspace-template/`. Repo-level docs should describe the neutral platform-wrapper authority; Android-specific runtime notes belong under `wrappers/mobile/capacitor/android/`.
 
 ## What This Project Does
 
@@ -56,7 +56,10 @@ Android is one child target under the Capacitor wrapper family. Desktop Tauri an
 # Install Capacitor dependencies
 npm ci --no-fund --no-audit
 
-# Unit tests
+# Wrapper ownership/topology proofs from the repo root
+npm run proof:wrapper
+
+# Android unit tests
 cd wrappers/mobile/capacitor/android
 ./gradlew :app:testNormalDebugUnitTest
 

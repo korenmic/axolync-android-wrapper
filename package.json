@@ -5,7 +5,9 @@
     "stage:assets": "node scripts/stage-browser-assets.mjs",
     "test": "node --test tests/*.test.mjs",
     "prepare:ios": "node scripts/prepare-ios-workspace.mjs",
-    "proof:wrapper-source": "node scripts/verify-wrapper-source-ownership.mjs"
+    "proof:wrapper-source": "node scripts/verify-wrapper-source-ownership.mjs",
+    "proof:wrapper-topology": "node scripts/verify-wrapper-typed-topology.mjs",
+    "proof:wrapper": "npm run proof:wrapper-source && npm run proof:wrapper-topology"
   },
   "dependencies": {
     "@capacitor/android": "^6.2.1",
