@@ -1,6 +1,6 @@
 # Implementation Plan
 
-- [ ] 1. Add failing topology and identity guardrail tests.
+- [x] 1. Add failing topology and identity guardrail tests.
   - Add or extend wrapper-local tests that parse wrapper layout metadata and assert active roots live only under `wrappers/mobile/*` or `wrappers/desktop/*`.
   - Assert active Tauri and Electron source cannot be canonical under top-level `templates/desktop/*`.
   - Assert `wrappers/mobile/capacitor/android`, `wrappers/desktop/tauri`, and `wrappers/desktop/electron` exist with real source markers.
