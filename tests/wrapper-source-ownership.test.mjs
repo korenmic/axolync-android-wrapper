@@ -50,10 +50,10 @@ test('wrapper source ownership verifier accepts complete canonical source fixtur
     'wrappers/mobile/capacitor/android/app/src/main/kotlin/com/axolync/android/activities/MainActivity.kt',
     'wrappers/mobile/capacitor/android/capacitor.config.json',
     'wrappers/mobile/capacitor/android/settings.gradle.kts',
-    'templates/desktop/tauri/package.json',
-    'templates/desktop/tauri/src-tauri/Cargo.toml',
-    'templates/desktop/tauri/src-tauri/tauri.conf.json',
-    'templates/desktop/tauri/src-tauri/src/main.rs',
+    'wrappers/desktop/tauri/workspace-template/package.json',
+    'wrappers/desktop/tauri/workspace-template/src-tauri/Cargo.toml',
+    'wrappers/desktop/tauri/workspace-template/src-tauri/tauri.conf.json',
+    'wrappers/desktop/tauri/workspace-template/src-tauri/src/main.rs',
     'templates/desktop/electron/package.json',
     'templates/desktop/electron/main.cjs',
     'templates/desktop/electron/preload.cjs',
@@ -82,7 +82,7 @@ test('wrapper repo source ownership proof passes for builder consumption', () =>
   assert.deepEqual(result.failures, []);
   assert.deepEqual(result.paths, {
     androidRoot: 'wrappers/mobile/capacitor/android',
-    tauriRoot: 'templates/desktop/tauri',
+    tauriRoot: 'wrappers/desktop/tauri/workspace-template',
     electronRoot: 'templates/desktop/electron',
     nativeRoot: 'native-service-companions',
   });
@@ -91,11 +91,11 @@ test('wrapper repo source ownership proof passes for builder consumption', () =>
 test('wrapper repo publishes canonical Tauri desktop template source', () => {
   const repoRoot = path.resolve(import.meta.dirname, '..');
   for (const relativePath of [
-    'templates/desktop/tauri/package.json',
-    'templates/desktop/tauri/src-tauri/Cargo.toml',
-    'templates/desktop/tauri/src-tauri/tauri.conf.json',
-    'templates/desktop/tauri/src-tauri/src/main.rs',
-    'templates/desktop/tauri/src-tauri/src/native_service_companion.rs',
+    'wrappers/desktop/tauri/workspace-template/package.json',
+    'wrappers/desktop/tauri/workspace-template/src-tauri/Cargo.toml',
+    'wrappers/desktop/tauri/workspace-template/src-tauri/tauri.conf.json',
+    'wrappers/desktop/tauri/workspace-template/src-tauri/src/main.rs',
+    'wrappers/desktop/tauri/workspace-template/src-tauri/src/native_service_companion.rs',
   ]) {
     assert.equal(fs.existsSync(path.join(repoRoot, relativePath)), true, `missing ${relativePath}`);
   }
@@ -117,7 +117,7 @@ test('wrapper-owned native companion host source remains generic and payload-fre
   const repoRoot = path.resolve(import.meta.dirname, '..');
   const ownedHostFiles = [
     'native-service-companions/host-protocol/capability-states.json',
-    'templates/desktop/tauri/src-tauri/src/native_service_companion.rs',
+    'wrappers/desktop/tauri/workspace-template/src-tauri/src/native_service_companion.rs',
     'templates/desktop/electron/nativeServiceCompanionHost.cjs',
     'wrappers/mobile/capacitor/android/app/src/main/kotlin/com/axolync/android/bridge/AxolyncNativeServiceCompanionHostPlugin.kt',
   ];

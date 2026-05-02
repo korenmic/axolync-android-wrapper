@@ -41,8 +41,9 @@ export function verifyWrapperSourceOwnership({
   const layout = readJson(layoutPath);
   const android = layout?.families?.capacitor?.android ?? {};
   const ios = layout?.families?.capacitor?.ios ?? {};
+  const tauri = layout?.families?.tauri?.desktop ?? {};
   const androidRoot = path.join(root, android.authorityPath ?? 'wrappers/mobile/capacitor/android');
-  const tauriRoot = path.join(root, 'templates', 'desktop', 'tauri');
+  const tauriRoot = path.join(root, tauri.templateRoot ?? tauri.authorityPath ?? 'wrappers/desktop/tauri/workspace-template');
   const electronRoot = path.join(root, 'templates', 'desktop', 'electron');
   const nativeRoot = path.join(root, 'native-service-companions');
   const failures = [];

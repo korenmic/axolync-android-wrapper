@@ -15,7 +15,7 @@ test('wrapper authority config names the target platform wrapper and temporary A
   assert.equal(authority.compatibilityAlias, 'axolync-android-wrapper');
   assert.deepEqual(authority.activeWrapperFamilies, ['capacitor', 'tauri', 'electron']);
   assert.equal(authority.activePlatformPaths.capacitorAndroid, 'wrappers/mobile/capacitor/android');
-  assert.equal(authority.activePlatformPaths.tauriDesktopTemplate, 'templates/desktop/tauri');
+  assert.equal(authority.activePlatformPaths.tauriDesktopTemplate, 'wrappers/desktop/tauri/workspace-template');
   assert.equal(authority.activePlatformPaths.electronDesktopTemplate, 'templates/desktop/electron');
   assert.equal(authority.completionPolicy.softCompletionRejected, true);
   assert.match(

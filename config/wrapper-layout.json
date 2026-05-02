@@ -38,11 +38,11 @@
       }
     },
     "tauri": {
-      "root": "templates/desktop/tauri",
+      "root": "wrappers/desktop/tauri/workspace-template",
       "desktop": {
-        "authorityPath": "templates/desktop/tauri",
-        "templateRoot": "templates/desktop/tauri",
-        "nativeServiceCompanionHost": "templates/desktop/tauri/src-tauri/src/native_service_companion.rs"
+        "authorityPath": "wrappers/desktop/tauri/workspace-template",
+        "templateRoot": "wrappers/desktop/tauri/workspace-template",
+        "nativeServiceCompanionHost": "wrappers/desktop/tauri/workspace-template/src-tauri/src/native_service_companion.rs"
       }
     },
     "electron": {

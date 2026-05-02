@@ -8,7 +8,7 @@
     "capacitorAndroid": "wrappers/mobile/capacitor/android",
     "capacitorShared": "wrappers/mobile/capacitor/shared",
     "capacitorIosPlaceholder": "wrappers/mobile/capacitor/ios",
-    "tauriDesktopTemplate": "templates/desktop/tauri",
+    "tauriDesktopTemplate": "wrappers/desktop/tauri/workspace-template",
     "electronDesktopTemplate": "templates/desktop/electron",
     "nativeServiceCompanionHostProtocol": "native-service-companions/host-protocol"
   },
@@ -20,8 +20,8 @@
       "wrappers/mobile/capacitor/android/app/src/main/AndroidManifest.xml",
       "wrappers/mobile/capacitor/android/app/src/main/kotlin/com/axolync/android/activities/MainActivity.kt",
       "wrappers/mobile/capacitor/android/app/src/main/kotlin/com/axolync/android/bridge/AxolyncNativeServiceCompanionHostPlugin.kt",
-      "templates/desktop/tauri/src-tauri/Cargo.toml",
-      "templates/desktop/tauri/src-tauri/src/native_service_companion.rs",
+      "wrappers/desktop/tauri/workspace-template/src-tauri/Cargo.toml",
+      "wrappers/desktop/tauri/workspace-template/src-tauri/src/native_service_companion.rs",
       "templates/desktop/electron/main.cjs",
       "templates/desktop/electron/nativeServiceCompanionHost.cjs",
       "native-service-companions/host-protocol/capability-states.json"

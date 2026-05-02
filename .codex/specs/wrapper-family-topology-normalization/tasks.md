@@ -14,7 +14,7 @@
   - Update tests and metadata so only the typed mobile path is canonical.
   - _Requirements: 1.1, 2.1, 2.2, 2.3, 2.4, 4.1, 4.2, 6.1_
 
-- [ ] 3. Move Tauri source into the typed desktop wrapper topology.
+- [x] 3. Move Tauri source into the typed desktop wrapper topology.
   - Move active Tauri source from top-level `templates/desktop/tauri` into `wrappers/desktop/tauri/workspace-template`.
   - Preserve native service companion host integration points under the Tauri wrapper root or a clearly named nested role folder.
   - Remove or quarantine the old top-level Tauri template path so it cannot pass as active source.
