@@ -28,7 +28,7 @@ The descriptor must make that mixed role explicit without moving browser logic o
 ## Technical Constraints
 
 - Consume descriptor schema/parser/validator from `axolync-contract`.
-- Update old `axolync-plugins-contract` references to `axolync-contract` where they exist.
+- Update old contract repo references to `axolync-contract` where they exist.
 - Add an `axolync.repo.toml` descriptor for `axolync-platform-wrapper`.
 - Use `repo.roles = ["consumer", "consumable"]`.
 - Expose wrapper-owned topology and template/native-service-companion outputs through export blocks.
