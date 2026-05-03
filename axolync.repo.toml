@@ -1,0 +1,38 @@
+schema = "axolync.repo/v1"
+
+[repo]
+id = "axolync-platform-wrapper"
+roles = ["consumer", "consumable"]
+display_name = "Axolync Platform Wrapper"
+description = "Wrapper authority for Axolync desktop and mobile webview runtime shells."
+
+[source]
+git_url = "https://github.com/korenmic/axolync-platform-wrapper.git"
+default_ref = "master"
+local_dev_path_hint = "../axolync-platform-wrapper"
+
+[bootstrap]
+install_mode = "managed-clone"
+install_root = ".axolync/repos"
+readme = "README.md"
+agent_docs = ["README.md", "config/wrapper-layout.json"]
+
+[exports.tests]
+full = "npm test"
+smoke = "npm run proof:wrapper"
+
+[exports.docs]
+bootstrap = ["README.md"]
+standards = ["config/wrapper-layout.json"]
+
+[[consumes.repos]]
+id = "axolync-contract"
+use = "schema-and-runtime-contracts"
+required = true
+source = "managed"
+
+[[consumes.repos]]
+id = "axolync-browser"
+use = "browser-runtime"
+required = true
+source = "managed"

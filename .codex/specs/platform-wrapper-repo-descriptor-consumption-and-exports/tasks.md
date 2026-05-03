@@ -1,6 +1,6 @@
 # Implementation Plan
 
-- [ ] 1. Add platform-wrapper descriptor with mixed roles and required dependencies.
+- [x] 1. Add platform-wrapper descriptor with mixed roles and required dependencies.
   - Create `axolync.repo.toml` with `repo.roles = ["consumer", "consumable"]`.
   - Declare required consumption of `axolync-contract` and `axolync-browser`.
   - Update stale `axolync-plugins-contract` references.
