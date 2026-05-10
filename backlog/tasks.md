@@ -33,3 +33,9 @@
   - Make all LRCLIB native companion startup/deploy failures lazy and failure-contained: the app must still launch, mark LRCLIB native unavailable, expose diagnostics, and allow remote LRCLIB fallback rather than crashing the process.
   - Preserve working normal APK startup and existing Vibra native companion behavior.
   - Add a non-device startup regression proof where possible, plus report validation that fails if an LRCLIB-native Android artifact contains a startup-fatal native payload configuration.
+
+- [ ] Harden the desktop Electron wrapper against Chromium GPU process startup failure.
+  - Manual execution of a generated Windows Electron portable artifact crashed after repeated `GPU process launch failed: error_code=18` messages and Chromium fatal `GPU process isn't usable. Goodbye.`
+  - Add an Electron wrapper startup fallback in `wrappers/desktop/electron/workspace-template/main.cjs` before `app.whenReady()`, such as `app.disableHardwareAcceleration()` or a minimal guarded command-line switch set, so the app can launch on Windows hosts where the GPU sandbox/process is unavailable.
+  - Keep the fallback wrapper-owned rather than builder-owned so every generated Electron workspace receives the same protection.
+  - Add wrapper or builder consumption coverage proving generated Electron `main.cjs` contains the startup guard before `app.whenReady()`.
