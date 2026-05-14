@@ -4,6 +4,8 @@ const { readFile } = require('node:fs/promises');
 const { extname, join, normalize, resolve, sep } = require('node:path');
 const { createNativeServiceCompanionHost } = require('./nativeServiceCompanionHost.cjs');
 
+const GPU_HARDENING_DISABLE_ENV = 'AXOLYNC_ELECTRON_DISABLE_GPU_HARDENING';
+
 const MIME_TYPES = {
   '.css': 'text/css; charset=utf-8',
   '.html': 'text/html; charset=utf-8',
@@ -22,6 +24,18 @@ const MIME_TYPES = {
 let assetServer = null;
 let assetServerRootUrl = null;
 let nativeServiceCompanionHost = null;
+
+function hardenChromiumGpuStartup() {
+  if (process.env[GPU_HARDENING_DISABLE_ENV] === '1') {
+    return;
+  }
+
+  // Release artifacts run on mixed Windows GPU/driver stacks; a failed GPU
+  // utility process can terminate Electron before the app shell is usable.
+  app.disableHardwareAcceleration();
+}
+
+hardenChromiumGpuStartup();
 
 function contentTypeFor(filePath) {
   return MIME_TYPES[extname(filePath).toLowerCase()] || 'application/octet-stream';

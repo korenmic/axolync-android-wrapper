@@ -33,3 +33,8 @@
   - Make all LRCLIB native companion startup/deploy failures lazy and failure-contained: the app must still launch, mark LRCLIB native unavailable, expose diagnostics, and allow remote LRCLIB fallback rather than crashing the process.
   - Preserve working normal APK startup and existing Vibra native companion behavior.
   - Add a non-device startup regression proof where possible, plus report validation that fails if an LRCLIB-native Android artifact contains a startup-fatal native payload configuration.
+
+- [x] Harden the desktop Electron wrapper against Chromium GPU process startup failure.
+  - Disable Electron hardware acceleration before `app.whenReady()` so GPU process startup failures do not terminate the release wrapper before the app shell is usable.
+  - Keep an explicit environment escape hatch for local diagnostics.
+  - Add wrapper-level proof that the hardening runs before Electron readiness.
