@@ -38,3 +38,10 @@
   - Disable Electron hardware acceleration before `app.whenReady()` so GPU process startup failures do not terminate the release wrapper before the app shell is usable.
   - Keep an explicit environment escape hatch for local diagnostics.
   - Add wrapper-level proof that the hardening runs before Electron readiness.
+
+- [x] Verify and harden LRCLIB native runtime support across Tauri and Capacitor wrappers.
+  - Land this in a dedicated platform-wrapper PR so wrapper runtime support is reviewed independently from addon and browser fixes.
+  - Verify the Sinq4-local platform-wrapper checkout contains active `lrclib-local-loopback-v1` runtime dispatch for Tauri and Capacitor, not only Electron.
+  - Add or update wrapper-side proof that valid LRCLIB native payload descriptors can be registered, started, queried, and failure-contained on supported wrappers.
+  - If an actual wrapper runtime gap is found, fix it in the wrapper repo rather than masking it in browser or LRCLIB addon code.
+  - Ensure unsupported browser/web hosts remain truthfully unsupported while Tauri/Capacitor wrappers expose actionable diagnostics for bridge, route, DB deploy, and server startup failures.
