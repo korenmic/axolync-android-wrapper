@@ -38,3 +38,10 @@
   - Disable Electron hardware acceleration before `app.whenReady()` so GPU process startup failures do not terminate the release wrapper before the app shell is usable.
   - Keep an explicit environment escape hatch for local diagnostics.
   - Add wrapper-level proof that the hardening runs before Electron readiness.
+
+- [x] Diagnose and fix stale browser asset embedding in desktop portable artifacts.
+  - Reproduce the mirror case where server/APK artifacts contained transform runtime strings while the desktop portable executable did not.
+  - Identify whether the desktop wrapper consumes stale browser build output, a stale submodule/symlink, or a builder copy step that bypasses the current generated server assets.
+  - Make desktop portable builds consume the same current browser runtime bundle and preinstall assets as the artifact profile requests.
+  - Add wrapper or builder-facing proof that a desktop artifact includes the current browser build identity and expected runtime schema strings before publication.
+  - Ensure the fix does not weaken Android wrapper staging or existing native-wrapper asset paths.

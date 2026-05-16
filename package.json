@@ -8,6 +8,7 @@
     "proof:wrapper-source": "node scripts/verify-wrapper-source-ownership.mjs",
     "proof:wrapper-topology": "node scripts/verify-wrapper-typed-topology.mjs",
     "proof:wrapper-identity": "node scripts/verify-wrapper-identity.mjs",
+    "proof:desktop-browser-assets": "node scripts/verify-desktop-browser-assets.mjs",
     "proof:wrapper": "npm run proof:wrapper-source && npm run proof:wrapper-topology && npm run proof:wrapper-identity"
   },
   "dependencies": {
