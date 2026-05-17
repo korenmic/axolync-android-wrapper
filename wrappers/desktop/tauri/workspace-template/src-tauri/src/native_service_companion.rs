@@ -947,7 +947,20 @@ fn start_runtime_operator(
             "entrypoint": registration.entrypoint.as_str(),
         }),
     );
-    match descriptor.runtime_operator_kind.as_str() {
+    let runtime_operator_kind = descriptor.runtime_operator_kind.as_str();
+    push_diagnostic(
+        &diagnostics,
+        "runtime-operator",
+        "info",
+        Some(addon_id),
+        Some(companion_id),
+        "runtime-operator.dispatch.selected",
+        json!({
+            "runtimeOperatorKind": runtime_operator_kind,
+            "entrypoint": registration.entrypoint.as_str(),
+        }),
+    );
+    match runtime_operator_kind {
         "shazam-discovery-loopback-v1" => start_shazam_runtime_operator(
             addon_id,
             companion_id,
@@ -960,10 +973,23 @@ fn start_runtime_operator(
             registration,
             diagnostics,
         ),
-        _ => Err(format!(
-            "Unsupported runtime operator kind: {}",
-            descriptor.runtime_operator_kind
-        )),
+        _ => {
+            push_diagnostic(
+                &diagnostics,
+                "runtime-operator",
+                "warn",
+                Some(addon_id),
+                Some(companion_id),
+                "runtime-operator.dispatch.unsupported",
+                json!({
+                    "runtimeOperatorKind": runtime_operator_kind,
+                }),
+            );
+            Err(format!(
+                "Unsupported runtime operator kind: {}",
+                descriptor.runtime_operator_kind
+            ))
+        }
     }
 }
 
