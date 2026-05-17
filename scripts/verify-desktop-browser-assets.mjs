@@ -30,6 +30,7 @@ function normalizeRequiredStrings(values = []) {
 export function verifyDesktopBrowserAssets({
   appDir = path.join(repoRoot, 'app'),
   requiredStrings = [],
+  requiredFiles = [],
 } = {}) {
   const resolvedAppDir = path.resolve(appDir);
   const failures = [];
@@ -54,6 +55,21 @@ export function verifyDesktopBrowserAssets({
       failures.push(`desktop browser asset root is missing required runtime string: ${requiredString}`);
     }
   }
+  const requiredAssetFiles = normalizeRequiredStrings(requiredFiles);
+  const matchedFiles = [];
+  for (const requiredFile of requiredAssetFiles) {
+    const normalizedRequiredFile = requiredFile.replaceAll('\\', '/').replace(/^\/+/, '');
+    const resolvedRequiredFile = path.resolve(resolvedAppDir, normalizedRequiredFile);
+    if (!resolvedRequiredFile.startsWith(`${resolvedAppDir}${path.sep}`) && resolvedRequiredFile !== resolvedAppDir) {
+      failures.push(`desktop browser asset required file escapes app root: ${requiredFile}`);
+      continue;
+    }
+    if (fs.existsSync(resolvedRequiredFile)) {
+      matchedFiles.push(normalizedRequiredFile);
+    } else {
+      failures.push(`desktop browser asset root is missing required file: ${normalizedRequiredFile}`);
+    }
+  }
 
   return {
     ok: failures.length === 0,
@@ -61,7 +77,9 @@ export function verifyDesktopBrowserAssets({
     indexPath,
     jsFiles,
     requiredStrings: required,
+    requiredFiles: requiredAssetFiles,
     matchedStrings,
+    matchedFiles,
     failures,
   };
 }
@@ -70,6 +88,7 @@ function parseCliArgs(argv) {
   const args = {
     appDir: '',
     requiredStrings: [],
+    requiredFiles: [],
   };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -78,6 +97,9 @@ function parseCliArgs(argv) {
       index += 1;
     } else if (arg === '--require-string') {
       args.requiredStrings.push(argv[index + 1] || '');
+      index += 1;
+    } else if (arg === '--require-file') {
+      args.requiredFiles.push(argv[index + 1] || '');
       index += 1;
     }
   }
@@ -89,6 +111,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const result = verifyDesktopBrowserAssets({
     appDir: args.appDir || path.join(repoRoot, 'app'),
     requiredStrings: args.requiredStrings,
+    requiredFiles: args.requiredFiles,
   });
   if (!result.ok) {
     console.error(result.failures.join('\n'));
@@ -98,5 +121,6 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     appDir: result.appDir,
     jsFileCount: result.jsFiles.length,
     requiredStrings: result.requiredStrings,
+    requiredFiles: result.requiredFiles,
   })}`);
 }
